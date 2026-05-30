@@ -1,0 +1,6 @@
+export { authAPI } from './auth'
+export { alertsAPI } from './alerts'
+export { eventsAPI } from './events'
+export { usersAPI } from './users'
+export { familyAPI } from './family'
+export { default as api } from './axios'
