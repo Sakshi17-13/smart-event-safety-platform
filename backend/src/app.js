@@ -23,7 +23,11 @@ app.use(helmet());
 
 app.use(
   cors({
-    origin: process.env.CLIENT_URL?.split(',') || ['http://localhost:3000', 'http://localhost:5173'],
+    origin: [
+      'http://localhost:3000',
+      'http://localhost:5173',
+      'https://smart-event-safety-platform.vercel.app',
+    ],
     credentials: true,
   })
 );
