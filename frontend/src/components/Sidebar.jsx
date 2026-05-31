@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion'
 import { Link, useLocation } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 import { cn } from '../utils/cn'
 import { glowPulse, scaleHover } from '../motion/presets'
 import {
@@ -18,22 +19,24 @@ import {
 } from 'lucide-react'
 
 const menuItems = [
-  { icon: LayoutDashboard, label: 'System', path: '/dashboard' },
-  { icon: Radar, label: 'Organizer Ops', path: '/organizer' },
-  { icon: Heart, label: 'Family', path: '/family' },
-  { icon: Watch, label: 'Pair Device', path: '/device-pairing' },
-  { icon: AlertTriangle, label: 'Alerts', path: '/alerts' },
-  { icon: Calendar, label: 'Events', path: '/events' },
-  { icon: Users, label: 'User Management', path: '/users' },
-  { icon: Activity, label: 'Monitoring', path: '/monitoring' },
-  { icon: Shield, label: 'Security', path: '/security' },
-  { icon: Settings, label: 'Settings', path: '/settings' },
+  { icon: LayoutDashboard, label: 'System', path: '/dashboard', roles: ['SUPER_ADMIN', 'EVENT_ORGANIZER'] },
+  { icon: Radar, label: 'Organizer Ops', path: '/organizer', roles: ['SUPER_ADMIN', 'EVENT_ORGANIZER'] },
+  { icon: Heart, label: 'Family', path: '/family', roles: ['SUPER_ADMIN', 'EVENT_ORGANIZER', 'FAMILY'] },
+  { icon: Watch, label: 'Pair Device', path: '/device-pairing', roles: ['SUPER_ADMIN', 'EVENT_ORGANIZER', 'FAMILY'] },
+  { icon: AlertTriangle, label: 'Alerts', path: '/alerts', roles: ['SUPER_ADMIN', 'EVENT_ORGANIZER'] },
+  { icon: Calendar, label: 'Events', path: '/events', roles: ['SUPER_ADMIN', 'EVENT_ORGANIZER', 'FAMILY'] },
+  { icon: Users, label: 'User Management', path: '/users', roles: ['SUPER_ADMIN'] },
+  { icon: Activity, label: 'Monitoring', path: '/monitoring', roles: ['SUPER_ADMIN', 'EVENT_ORGANIZER'] },
+  { icon: Shield, label: 'Security', path: '/security', roles: ['SUPER_ADMIN'] },
+  { icon: Settings, label: 'Settings', path: '/settings', roles: ['SUPER_ADMIN', 'EVENT_ORGANIZER', 'FAMILY'] },
 ]
 
 const MotionLink = motion(Link)
 
 const Sidebar = ({ collapsed, setCollapsed }) => {
   const location = useLocation()
+  const { user } = useAuth()
+  const visibleItems = menuItems.filter((item) => !item.roles || item.roles.includes(user?.role))
 
   return (
     <aside
@@ -62,7 +65,7 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
 
       {/* Navigation */}
       <nav className="p-4 space-y-2">
-        {menuItems.map((item) => {
+        {visibleItems.map((item) => {
           const Icon = item.icon
           const isActive = location.pathname === item.path
 

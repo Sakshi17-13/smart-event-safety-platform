@@ -6,12 +6,12 @@ import AuthLayout from './layouts/AuthLayout'
 import DashboardLayout from './layouts/DashboardLayout'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
-import SystemOverviewDashboard from './pages/Dashboard'
+import SystemDashboard from './pages/SystemDashboard'
 import OrganizerDashboard from './pages/OrganizerDashboard'
 import FamilyDashboard from './pages/FamilyDashboard'
 import Alerts from './pages/Alerts'
 import Events from './pages/Events'
-import UserFamilyManagement from './pages/Users'
+import UserManagementDashboard from './pages/UserManagementDashboard'
 import Monitoring from './pages/Monitoring'
 import Security from './pages/Security'
 import Settings from './pages/Settings'
@@ -39,7 +39,7 @@ function App() {
                 </ProtectedRoute>
               }
             >
-              <Route path="/dashboard" element={<SystemOverviewDashboard />} />
+              <Route path="/dashboard" element={<SystemDashboard />} />
               <Route
                 path="/organizer"
                 element={
@@ -62,7 +62,7 @@ function App() {
                 path="/users"
                 element={
                   <ProtectedRoute allowedRoles={['SUPER_ADMIN']}>
-                    <UserFamilyManagement />
+                    <UserManagementDashboard />
                   </ProtectedRoute>
                 }
               />

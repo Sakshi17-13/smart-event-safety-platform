@@ -1,6 +1,12 @@
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
+const defaultRouteForRole = (role) => {
+  if (role === 'FAMILY') return '/family'
+  if (role === 'EVENT_ORGANIZER') return '/organizer'
+  return '/dashboard'
+}
+
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const { isAuthenticated, loading, user } = useAuth()
 
@@ -17,7 +23,7 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
   }
 
   if (allowedRoles?.length && !allowedRoles.includes(user?.role)) {
-    return <Navigate to="/dashboard" replace />
+    return <Navigate to={defaultRouteForRole(user?.role)} replace />
   }
 
   return children
