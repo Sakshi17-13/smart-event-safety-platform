@@ -8,9 +8,12 @@ const app = require('./app');
 const socketManager = require('./sockets/socket.manager');
 const logger = require('./utils/logger');
 
-const PORT = parseInt(process.env.PORT, 10) || 5001;
+const DEFAULT_DEVELOPMENT_PORT = 5001;
+const PORT = parseInt(process.env.PORT, 10) || DEFAULT_DEVELOPMENT_PORT;
+const HOST = process.env.HOST || '0.0.0.0';
 const PORT_FALLBACK_LIMIT = parseInt(process.env.PORT_FALLBACK_LIMIT, 10) || 10;
 const isDevelopment = (process.env.NODE_ENV || 'development') === 'development';
+const environment = process.env.NODE_ENV || 'development';
 const MONGODB_URI =
   process.env.MONGODB_URI ||
   process.env.MONGODB_URL ||
@@ -18,6 +21,9 @@ const MONGODB_URI =
   (isDevelopment ? 'mongodb://localhost:27017/smart-event-safety' : null);
 
 const server = http.createServer(app);
+server.keepAliveTimeout = parseInt(process.env.SERVER_KEEP_ALIVE_TIMEOUT_MS, 10) || 65000;
+server.headersTimeout = parseInt(process.env.SERVER_HEADERS_TIMEOUT_MS, 10) || 66000;
+
 const runtimeDir = path.resolve(__dirname, '../.runtime');
 const runtimePortFile = path.join(runtimeDir, 'backend-port.json');
 
@@ -57,11 +63,18 @@ async function initializeDatabase() {
     }
 
     setDatabaseStatus('connecting');
+    logger.info('MongoDB connection starting', {
+      environment,
+      hasMongoUri: Boolean(MONGODB_URI),
+      serverSelectionTimeoutMs: parseInt(process.env.MONGODB_SERVER_SELECTION_TIMEOUT_MS, 10) || 5000,
+    });
+
     await mongoose.connect(MONGODB_URI, {
       maxPoolSize: parseInt(process.env.MONGODB_POOL_SIZE, 10) || 10,
       serverSelectionTimeoutMS: parseInt(process.env.MONGODB_SERVER_SELECTION_TIMEOUT_MS, 10) || 5000,
       socketTimeoutMS: parseInt(process.env.MONGODB_SOCKET_TIMEOUT_MS, 10) || 45000,
       family: 4,
+      autoIndex: isDevelopment,
     });
     logger.info('MongoDB connected successfully', {
       host: mongoose.connection.host,
@@ -76,7 +89,7 @@ async function initializeDatabase() {
     });
 
     if (!isDevelopment) {
-      process.exit(1);
+      throw error;
     }
   }
 }
@@ -98,9 +111,10 @@ mongoose.connection.on('error', (error) => {
 async function initializeSocket() {
   try {
     socketManager.initialize(server);
-    logger.info('Socket.io initialized successfully');
+    logger.info('Socket.io initialized successfully', { environment });
   } catch (error) {
     logger.error('Socket.io initialization error:', error);
+    throw error;
   }
 }
 
@@ -120,66 +134,105 @@ function listenOnPort(port, attemptsRemaining = PORT_FALLBACK_LIMIT) {
 
     const handleListening = () => {
       server.removeListener('error', handleError);
-      resolve(port);
+      const address = server.address();
+      resolve({
+        port: address?.port || port,
+        host: address?.address || HOST,
+      });
     };
 
     server.once('error', handleError);
     server.once('listening', handleListening);
-    server.listen(port);
+    server.listen(port, HOST);
   });
 }
 
 async function startServer() {
   try {
+    logger.info('Server startup beginning', {
+      environment,
+      port: PORT,
+      host: HOST,
+      renderService: Boolean(process.env.RENDER || process.env.RENDER_SERVICE_ID),
+    });
+
     await initializeDatabase();
     await initializeSocket();
 
-    const activePort = await listenOnPort(PORT);
+    const bind = await listenOnPort(PORT);
+    const activePort = bind.port;
     writeRuntimePort(activePort);
-    logger.info(`Server running on port ${activePort}`);
-    logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
+    logger.info('Server bind successful', {
+      host: bind.host,
+      port: activePort,
+      environment,
+      mongodbStatus: app.locals.dbStatus,
+      socketInitialized: Boolean(socketManager.io),
+    });
   } catch (error) {
-    logger.error('Failed to start server:', error);
+    logger.error('Failed to start server', {
+      message: error.message,
+      stack: error.stack,
+      environment,
+      port: PORT,
+      host: HOST,
+      mongodbStatus: app.locals.dbStatus,
+    });
     process.exit(1);
   }
 }
 
+function shutdown(signal) {
+  logger.info(`${signal} signal received: closing HTTP server`);
+
+  const forceExitTimer = setTimeout(() => {
+    logger.error('Forced shutdown after timeout', { signal });
+    process.exit(1);
+  }, parseInt(process.env.SHUTDOWN_TIMEOUT_MS, 10) || 10000);
+  forceExitTimer.unref();
+
+  const closeDatabaseAndExit = () => {
+    if (mongoose.connection.readyState === 0) {
+      clearTimeout(forceExitTimer);
+      process.exit(0);
+    }
+
+    mongoose.connection.close(false, () => {
+      logger.info('MongoDB connection closed');
+      clearTimeout(forceExitTimer);
+      process.exit(0);
+    });
+  };
+
+  if (!server.listening) {
+    logger.info('HTTP server was not listening during shutdown');
+    closeDatabaseAndExit();
+    return;
+  }
+
+  server.close(() => {
+    logger.info('HTTP server closed');
+    closeDatabaseAndExit();
+  });
+}
+
 process.on('uncaughtException', (error) => {
   logger.error('Uncaught Exception:', error);
-  process.exit(1);
+  shutdown('uncaughtException');
 });
 
 process.on('unhandledRejection', (reason, promise) => {
   logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
-  process.exit(1);
+  if (!isDevelopment) return;
+  shutdown('unhandledRejection');
 });
 
 process.on('SIGTERM', () => {
-  logger.info('SIGTERM signal received: closing HTTP server');
-  server.close(() => {
-    logger.info('HTTP server closed');
-    if (mongoose.connection.readyState === 0) {
-      process.exit(0);
-    }
-    mongoose.connection.close(false, () => {
-      logger.info('MongoDB connection closed');
-      process.exit(0);
-    });
-  });
+  shutdown('SIGTERM');
 });
 
 process.on('SIGINT', () => {
-  logger.info('SIGINT signal received: closing HTTP server');
-  server.close(() => {
-    logger.info('HTTP server closed');
-    if (mongoose.connection.readyState === 0) {
-      process.exit(0);
-    }
-    mongoose.connection.close(false, () => {
-      logger.info('MongoDB connection closed');
-      process.exit(0);
-    });
-  });
+  shutdown('SIGINT');
 });
 
 startServer();

@@ -14,6 +14,11 @@ class SocketManager {
   }
 
   initialize(server) {
+    if (this.io) {
+      logger.warn('Socket.io server already initialized');
+      return this.io;
+    }
+
     this.io = new Server(server, {
       cors: createSocketCorsOptions(),
       pingTimeout: 60000,
@@ -27,7 +32,12 @@ class SocketManager {
       this.handleConnection(socket);
     });
 
-    logger.info('Socket.io server initialized');
+    logger.info('Socket.io server initialized', {
+      transports: ['websocket', 'polling'],
+      environment: process.env.NODE_ENV || 'development',
+    });
+
+    return this.io;
   }
 
   handleConnection(socket) {

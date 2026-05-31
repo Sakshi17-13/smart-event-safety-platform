@@ -3,7 +3,7 @@ const { createSocketCorsOptions } = require('./cors.config');
 
 class SocketConfig {
   constructor() {
-    this.port = parseInt(process.env.SOCKET_PORT) || 5001;
+    this.port = parseInt(process.env.SOCKET_PORT || process.env.PORT, 10) || 5001;
     this.pingTimeout = parseInt(process.env.SOCKET_PING_TIMEOUT) || 60000;
     this.pingInterval = parseInt(process.env.SOCKET_PING_INTERVAL) || 25000;
     this.maxHttpBufferSize = 1e6;

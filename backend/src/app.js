@@ -22,7 +22,9 @@ app.locals.dbError = null;
 
 app.use(helmet());
 
-app.use(cors(createCorsOptions()));
+const corsOptions = createCorsOptions();
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 
 app.use(morgan('combined'));
 
@@ -63,7 +65,9 @@ app.use('/api', (req, res, next) => {
 
   return res.status(503).json({
     success: false,
-    message: 'Database is temporarily unavailable. The server is running in development fallback mode.',
+    message: allowNoDb
+      ? 'Database is temporarily unavailable. The server is running in development fallback mode.'
+      : 'Database is temporarily unavailable. Please try again shortly.',
     data: {
       database: {
         available: false,
