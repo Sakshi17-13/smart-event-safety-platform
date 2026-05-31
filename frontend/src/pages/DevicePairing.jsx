@@ -17,6 +17,51 @@ const randomDeviceId = (type = 'watch') => {
   return `${option.prefix}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`
 }
 
+const boundaryLabels = {
+  tracking_active: 'Tracking Active',
+  near_boundary: 'Near Boundary',
+  outside_event_zone: 'Outside Event Zone',
+}
+
+const metersBetween = (a = {}, b = {}) => {
+  const lat1 = Number(a.latitude)
+  const lon1 = Number(a.longitude)
+  const lat2 = Number(b.latitude)
+  const lon2 = Number(b.longitude)
+  if (![lat1, lon1, lat2, lon2].every(Number.isFinite)) return null
+  const toRad = (value) => (value * Math.PI) / 180
+  const earthRadiusMeters = 6371000
+  const dLat = toRad(lat2 - lat1)
+  const dLon = toRad(lon2 - lon1)
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2
+  return earthRadiusMeters * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h))
+}
+
+const resolveBoundaryState = (pairingData, location) => {
+  const boundary = pairingData?.eventBoundary
+  const center = boundary?.center
+  const radiusMeters = Number(boundary?.radiusMeters)
+  if (!center || !Number.isFinite(radiusMeters)) {
+    return { state: 'tracking_active', label: boundaryLabels.tracking_active, sessionActive: true }
+  }
+  const distanceMeters = metersBetween(center, location)
+  const threshold = Number(boundary.nearBoundaryThreshold || 0.85)
+  const sessionActive = boundary.sessionActive !== false
+  const outside = !sessionActive || (Number.isFinite(distanceMeters) && distanceMeters > radiusMeters)
+  const near = Number.isFinite(distanceMeters) && distanceMeters >= radiusMeters * threshold
+  const state = outside ? 'outside_event_zone' : near ? 'near_boundary' : 'tracking_active'
+  return {
+    ...boundary,
+    distanceMeters,
+    state,
+    label: boundaryLabels[state],
+    sessionActive: !outside,
+    reason: outside ? 'outside_event_radius' : near ? 'near_event_boundary' : 'inside_event_radius',
+  }
+}
+
 const loadIdentity = () => {
   try {
     const saved = JSON.parse(localStorage.getItem(DEVICE_KEY))
@@ -62,6 +107,7 @@ const DevicePairing = () => {
   const [lastUpdate, setLastUpdate] = useState(null)
   const [sharing, setSharing] = useState(false)
   const [geolocationStatus, setGeolocationStatus] = useState('idle')
+  const [boundaryState, setBoundaryState] = useState({ state: 'tracking_active', label: 'Tracking Active' })
   const [childMode, setChildMode] = useState(false)
 
   const selectedType = deviceTypes.find((item) => item.value === identity.deviceType) || deviceTypes[0]
@@ -195,6 +241,8 @@ const DevicePairing = () => {
     const nextSignal = Math.random() > 0.85 ? 'weak' : 'strong'
     const location = { latitude: coords.latitude, longitude: coords.longitude }
     const timestamp = new Date().toISOString()
+    const privacyBoundary = resolveBoundaryState(pairingData, location)
+    setBoundaryState(privacyBoundary)
     const payload = {
       latitude: location.latitude,
       longitude: location.longitude,
@@ -202,13 +250,54 @@ const DevicePairing = () => {
       signal: nextSignal,
       batteryLevel: nextBattery,
       signalStatus: nextSignal,
+      trackingState: privacyBoundary.state,
+      trackingLabel: privacyBoundary.label,
+      privacyBoundary,
+      sessionStatus: privacyBoundary.sessionActive ? 'active' : 'inactive',
+      trackingPaused: !privacyBoundary.sessionActive,
       deviceType: identity.deviceType,
       deviceLabel: identity.deviceLabel,
       deviceSessionId: pairingData.deviceSession.sessionId,
       timestamp,
     }
 
-    await familyAPI.updateDeviceLocation(pairingData.deviceId, payload)
+    const response = await familyAPI.updateDeviceLocation(pairingData.deviceId, payload)
+    const serverState = response?.data?.data
+    const effectiveBoundary = serverState?.privacyBoundary || privacyBoundary
+    const trackingPaused = Boolean(serverState?.trackingPaused || payload.trackingPaused)
+    setBoundaryState(effectiveBoundary)
+    if (trackingPaused) {
+      stopGpsTracking()
+      clearInterval(heartbeatRef.current)
+      setConnectionStatus('idle')
+      setSignalStatus('lost')
+      setPaired((current) =>
+        current
+          ? {
+              ...current,
+              connected: false,
+              status: 'inactive',
+              eventBoundary: effectiveBoundary,
+              deviceSession: { ...current.deviceSession, status: 'inactive' },
+            }
+          : current
+      )
+      socketRef.current?.emit('DEVICE_TRACKING_PAUSED', {
+        deviceId: pairingData.deviceId,
+        eventId: pairingData.eventId,
+        familyGroupId: pairingData.groupId,
+        childMemberId: pairingData.childMemberId,
+        location,
+        trackingState: effectiveBoundary.state,
+        trackingLabel: effectiveBoundary.label,
+        privacyBoundary: effectiveBoundary,
+        sessionStatus: 'inactive',
+        trackingPaused: true,
+        timestamp,
+      })
+      setStatus('Outside Event Zone. Privacy-aware tracking paused and location streaming stopped.')
+      return
+    }
     socketRef.current?.emit('DEVICE_LOCATION_UPDATE', {
       deviceId: pairingData.deviceId,
       eventId: pairingData.eventId,
@@ -222,6 +311,11 @@ const DevicePairing = () => {
       signal: payload.signal,
       batteryLevel: payload.batteryLevel,
       signalStatus: payload.signalStatus,
+      trackingState: effectiveBoundary.state,
+      trackingLabel: effectiveBoundary.label,
+      privacyBoundary: effectiveBoundary,
+      sessionStatus: 'active',
+      trackingPaused: false,
       deviceSession: pairingData.deviceSession,
       timestamp,
     })
@@ -229,6 +323,11 @@ const DevicePairing = () => {
     setBatteryLevel(nextBattery)
     setSignalStatus(nextSignal)
     setLastUpdate(new Date().toLocaleTimeString())
+    if (effectiveBoundary.state === 'near_boundary') {
+      setStatus('Near Boundary. Temporary event tracking is still active inside the festival radius.')
+    } else {
+      setStatus('Tracking Active. Location sharing is limited to this active event zone.')
+    }
   }
 
   const startGpsTracking = (pairingData) => {
@@ -351,6 +450,7 @@ const DevicePairing = () => {
       },
     })
     setPaired(null)
+    setBoundaryState({ state: 'tracking_active', label: 'Tracking Active' })
     stopGpsTracking()
     setGeolocationStatus('idle')
     setConnectionStatus('idle')
@@ -372,6 +472,7 @@ const DevicePairing = () => {
         throw new Error('Device session was not created. Recheck the pair code and try again.')
       }
       setPaired(pairingData)
+      setBoundaryState(pairingData.eventBoundary || { state: 'tracking_active', label: 'Tracking Active' })
       setConnectionStatus('local')
       connectDeviceSocket(pairingData)
       startGpsTracking(pairingData)
@@ -456,6 +557,12 @@ const DevicePairing = () => {
           ? 'Pairing'
           : 'Disconnected'
   const signalColor = signalStatus === 'strong' ? 'text-success' : signalStatus === 'weak' ? 'text-warning' : 'text-danger'
+  const boundaryStyle =
+    boundaryState.state === 'outside_event_zone'
+      ? 'bg-danger/10 border-danger/35 text-danger'
+      : boundaryState.state === 'near_boundary'
+        ? 'bg-warning/10 border-warning/35 text-warning'
+        : 'bg-success/10 border-success/35 text-success'
 
   if (childMode) {
     return (
@@ -514,6 +621,16 @@ const DevicePairing = () => {
               <p className="text-lg font-bold text-text-primary mt-2">{gpsBlocked ? 'Blocked' : sharing ? 'On' : 'Off'}</p>
               <p className="text-[11px] text-text-muted">GPS</p>
             </div>
+          </div>
+
+          <div className={`rounded-2xl border px-4 py-3 text-center ${boundaryStyle}`}>
+            <p className="text-[11px] uppercase tracking-[0.22em] opacity-80">Event Privacy Boundary</p>
+            <p className="text-lg font-black mt-1">{boundaryState.label || boundaryLabels[boundaryState.state] || 'Tracking Active'}</p>
+            <p className="text-xs mt-1 opacity-80">
+              {Number.isFinite(boundaryState.distanceMeters) && Number.isFinite(boundaryState.radiusMeters)
+                ? `${Math.round(boundaryState.distanceMeters)}m of ${Math.round(boundaryState.radiusMeters)}m event radius`
+                : 'Temporary tracking only runs inside the active event zone'}
+            </p>
           </div>
 
           <div className="grid grid-cols-2 gap-3 pb-2">
@@ -666,6 +783,20 @@ const DevicePairing = () => {
             </div>
 
             {status && <div className="p-3 rounded-lg bg-primary/10 text-primary border border-primary/30">{status}</div>}
+            <div className={`p-3 rounded-lg border ${boundaryStyle}`}>
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.2em] opacity-80">Event Privacy Boundary</p>
+                  <p className="font-bold">{boundaryState.label || boundaryLabels[boundaryState.state] || 'Tracking Active'}</p>
+                </div>
+                <Shield size={20} />
+              </div>
+              <p className="text-xs mt-2 opacity-80">
+                {Number.isFinite(boundaryState.distanceMeters) && Number.isFinite(boundaryState.radiusMeters)
+                  ? `${Math.round(boundaryState.distanceMeters)}m from event center / ${Math.round(boundaryState.radiusMeters)}m allowed`
+                  : 'Location sharing is temporary and event-scoped.'}
+              </p>
+            </div>
             {gpsBlocked && (
               <div className="p-3 rounded-lg bg-danger/10 text-danger border border-danger/30">
                 Browser location access is required for realtime tracking. Allow location permission for this site, then pair or reload the device session.
@@ -717,6 +848,11 @@ const DevicePairing = () => {
             <Shield className={sharing ? 'text-success' : 'text-text-muted'} />
             <p className="text-sm text-text-muted mt-3">Geolocation</p>
             <p className="text-xl font-bold text-text-primary">{sharing ? 'Streaming' : 'Paused'}</p>
+          </div>
+          <div className={`glass rounded-xl p-5 border ${boundaryStyle}`}>
+            <Shield />
+            <p className="text-sm mt-3 opacity-80">Privacy Boundary</p>
+            <p className="text-xl font-bold">{boundaryState.label || boundaryLabels[boundaryState.state] || 'Tracking Active'}</p>
           </div>
         </div>
       </div>

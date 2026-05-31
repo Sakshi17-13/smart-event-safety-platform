@@ -339,6 +339,42 @@ class FamilyController {
   async updateDeviceLocation(req, res, next) {
     try {
       const result = await familyService.updateDeviceLocation(req.params.deviceId, req.body);
+      const payload = {
+        eventId: result.eventId ? String(result.eventId) : undefined,
+        familyGroupId: String(result.groupId),
+        groupId: String(result.groupId),
+        childMemberId: String(result.childMemberId),
+        deviceId: result.deviceId,
+        latitude: req.body.latitude,
+        longitude: req.body.longitude,
+        location: { latitude: req.body.latitude, longitude: req.body.longitude },
+        battery: req.body.battery ?? req.body.batteryLevel,
+        signal: req.body.signal || req.body.signalStatus,
+        batteryLevel: req.body.batteryLevel ?? req.body.battery,
+        signalStatus: req.body.signalStatus || req.body.signal,
+        geofenceStatus: result.child?.geofenceStatus,
+        trackingState: result.trackingState,
+        trackingLabel: result.trackingLabel,
+        privacyBoundary: result.privacyBoundary,
+        sessionStatus: result.sessionStatus,
+        trackingPaused: result.trackingPaused,
+        timestamp: new Date().toISOString(),
+      };
+      socketManager.broadcastToFamily(payload.familyGroupId, 'DEVICE_LOCATION_UPDATED', payload);
+      socketManager.broadcastToFamily(payload.familyGroupId, 'TRACKING_PRIVACY_BOUNDARY', payload);
+      if (payload.trackingPaused) {
+        socketManager.broadcastToFamily(payload.familyGroupId, 'DEVICE_TRACKING_PAUSED', payload);
+        socketManager.broadcastToFamily(payload.familyGroupId, 'DEVICE_DISCONNECTED', payload);
+      }
+      if (payload.eventId) {
+        socketManager.broadcastToEvent(payload.eventId, 'DEVICE_LOCATION_UPDATED', payload);
+        socketManager.broadcastToOrganizer(payload.eventId, payload.trackingPaused ? 'DEVICE_TRACKING_PAUSED' : 'ORGANIZER_DEVICE_LOCATION_UPDATE', {
+          ...payload,
+          childMemberId: undefined,
+          deviceId: undefined,
+          familyGroupLabel: `Family ${payload.familyGroupId.slice(-4)}`,
+        });
+      }
       res.status(200).json({ success: true, message: 'Device location updated successfully', data: result });
     } catch (error) {
       next(error);

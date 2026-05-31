@@ -92,6 +92,32 @@ const eventSchema = new mongoose.Schema(
       facilities: [String],
       accessInstructions: String,
     },
+    safetyRadiusMeters: {
+      type: Number,
+      required: [true, 'Active festival radius is required'],
+      default: 170,
+      min: [10, 'Active festival radius must be at least 10 meters'],
+      max: [100000, 'Active festival radius cannot exceed 100,000 meters'],
+    },
+    privacyBoundary: {
+      activeFestivalRadiusMeters: {
+        type: Number,
+        default: 170,
+        min: 10,
+      },
+      nearBoundaryThreshold: {
+        type: Number,
+        default: 0.85,
+        min: 0.5,
+        max: 0.98,
+      },
+      autoExpireAfterInactiveMinutes: {
+        type: Number,
+        default: 20,
+        min: 1,
+        max: 1440,
+      },
+    },
     schedule: {
       startDate: {
         type: Date,

@@ -133,6 +133,15 @@ const ChildCard = ({ child, onSelect, onSOS, distance }) => (
           {child.deviceState.label}
         </span>
       </div>
+      <div className={`mt-3 inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] ${trackingBoundaryClass(child.trackingState)}`}>
+        <Shield size={12} />
+        {trackingBoundaryLabel(child.trackingState)}
+      </div>
+      {child.trackingState === 'outside_event_zone' && (
+        <p className="mt-2 text-xs text-danger/90">
+          Event-scoped tracking is paused until this device returns inside the active festival radius.
+        </p>
+      )}
     </div>
 
     {child.isPaired && child.position && (
@@ -346,12 +355,38 @@ const zoneFromGeofenceState = (geofenceState) =>
         ? 'Safe radius'
         : undefined
 
+const trackingBoundaryLabel = (state) =>
+  state === 'outside_event_zone'
+    ? 'Outside Event Zone'
+    : state === 'near_boundary'
+      ? 'Near Boundary'
+      : 'Tracking Active'
+
+const trackingBoundaryClass = (state) =>
+  state === 'outside_event_zone'
+    ? 'bg-danger/15 text-danger border-danger/35'
+    : state === 'near_boundary'
+      ? 'bg-warning/15 text-warning border-warning/35'
+      : 'bg-success/15 text-success border-success/35'
+
 const displayNameForUser = (user) =>
   [user?.firstName, user?.lastName].filter(Boolean).join(' ') || user?.name || 'Primary Guardian'
 
 const formatLastSeen = (timestamp) => formatRelativeTime(timestamp)
 
 const deviceStateFor = ({ device, member, child }) => {
+  const trackingState = child?.trackingState || member?.trackingState || device?.trackingState
+  if (trackingState === 'outside_event_zone' || child?.trackingPaused || member?.trackingPaused || device?.trackingPaused) {
+    return {
+      key: 'outside-event-zone',
+      label: 'Outside Event Zone',
+      dot: 'bg-danger',
+      badge: 'bg-danger/15 text-danger border-danger/30',
+      panel: 'border-danger/30 bg-danger/5',
+      glow: '',
+    }
+  }
+
   if (!device?.deviceId) {
     return {
       key: 'pairing-required',
@@ -367,6 +402,17 @@ const deviceStateFor = ({ device, member, child }) => {
   const hasLiveLocation = Boolean(device.lastLocation || member?.lastLocation || child?.position)
 
   if (connected && hasLiveLocation) {
+    if (trackingState === 'near_boundary') {
+      return {
+        key: 'near-boundary',
+        label: 'Near Boundary',
+        dot: 'bg-warning animate-pulse',
+        badge: 'bg-warning/15 text-warning border-warning/35',
+        panel: 'border-warning/35 bg-warning/5 shadow-[0_0_22px_rgba(245,158,11,0.14)]',
+        glow: '',
+      }
+    }
+
     return {
       key: 'tracking-live',
       label: 'Tracking Live',
@@ -411,8 +457,10 @@ const familyTimelineEvents = new Set([
   'DEVICE_PAIRED',
   'DEVICE_STATUS_UPDATED',
   'DEVICE_DISCONNECTED',
+  'DEVICE_TRACKING_PAUSED',
   'DEVICE_RECONNECTED',
   'DEVICE_LOCATION_UPDATED',
+  'TRACKING_PRIVACY_BOUNDARY',
   'GEOFENCE_ACTIVATED',
   'GEOFENCE_WARNING',
   'GEOFENCE_BREACH',
@@ -492,7 +540,7 @@ const FamilyDashboard = () => {
     const position = isPaired && child.lastLocation?.coordinates
       ? [child.lastLocation.coordinates[1], child.lastLocation.coordinates[0]]
       : null
-    const deviceState = deviceStateFor({ device: primaryDevice, member: child, child: { position } })
+    const deviceState = deviceStateFor({ device: primaryDevice, member: child, child: { ...child, position } })
     return {
       id: child._id || index + 1,
       name: child.name || 'Child Member',
@@ -515,6 +563,11 @@ const FamilyDashboard = () => {
       signalStatus: child.signalStatus,
       geofenceStatus: isPaired ? child.geofenceStatus : undefined,
       geofenceState: isPaired ? child.geofenceState : undefined,
+      trackingState: child.trackingState || child.privacyBoundary?.state || (child.connected === false && isPaired ? 'outside_event_zone' : 'tracking_active'),
+      trackingLabel: child.trackingLabel || child.privacyBoundary?.label,
+      trackingPaused: Boolean(child.trackingPaused || child.sessionStatus === 'inactive'),
+      privacyBoundary: child.privacyBoundary,
+      sessionStatus: child.sessionStatus,
       distanceMeters: isPaired ? child.distanceMeters : null,
       zone: isPaired ? child.zone : undefined,
       groupId: group?._id || group?.familyGroupId,
@@ -758,6 +811,8 @@ const FamilyDashboard = () => {
     on('DEVICE_LOCATION_UPDATED', reloadIfOwnDevice)
     on('DEVICE_STATUS_UPDATED', reloadIfOwnDevice)
     on('DEVICE_DISCONNECTED', reloadIfOwnDevice)
+    on('DEVICE_TRACKING_PAUSED', reloadIfOwnDevice)
+    on('TRACKING_PRIVACY_BOUNDARY', reloadIfOwnDevice)
     on('DEVICE_RECONNECTED', reloadIfOwnDevice)
     on('GEOFENCE_WARNING', reloadIfOwnDevice)
     on('GEOFENCE_BREACH', reloadIfOwnDevice)
@@ -776,6 +831,8 @@ const FamilyDashboard = () => {
       off('DEVICE_LOCATION_UPDATED', reloadIfOwnDevice)
       off('DEVICE_STATUS_UPDATED', reloadIfOwnDevice)
       off('DEVICE_DISCONNECTED', reloadIfOwnDevice)
+      off('DEVICE_TRACKING_PAUSED', reloadIfOwnDevice)
+      off('TRACKING_PRIVACY_BOUNDARY', reloadIfOwnDevice)
       off('DEVICE_RECONNECTED', reloadIfOwnDevice)
       off('GEOFENCE_WARNING', reloadIfOwnDevice)
       off('GEOFENCE_BREACH', reloadIfOwnDevice)
@@ -820,16 +877,22 @@ const FamilyDashboard = () => {
               : (() => {
                   const distanceMeters = Number.isFinite(data.distanceMeters)
                     ? data.distanceMeters
+                    : Number.isFinite(data.privacyBoundary?.distanceMeters)
+                      ? data.privacyBoundary.distanceMeters
                     : metersBetween(guardianCenter, target)
                   const geofenceState = data.geofenceState || geofenceStateFromDistance(distanceMeters, data.geofenceStatus)
+                  const trackingState = data.trackingState || data.privacyBoundary?.state || 'tracking_active'
+                  const trackingPaused = Boolean(data.trackingPaused || data.sessionStatus === 'inactive' || trackingState === 'outside_event_zone')
                   const nextDevices = (child.devices || []).map((device, index) =>
                     index === 0
                       ? {
                           ...device,
-                          status: 'connected',
-                          connected: true,
+                          status: trackingPaused ? 'disconnected' : 'connected',
+                          connected: !trackingPaused,
                           batteryLevel: data.batteryLevel ?? data.battery,
                           signalStatus: data.signalStatus || data.signal || device.signalStatus,
+                          trackingState,
+                          trackingPaused,
                           lastSeenAt: data.timestamp || new Date().toISOString(),
                           lastLocation: { type: 'Point', coordinates: [target[1], target[0]] },
                         }
@@ -840,11 +903,13 @@ const FamilyDashboard = () => {
                     : data.deviceId
                       ? [{
                           deviceId: data.deviceId,
-                          status: 'connected',
-                          connected: true,
+                          status: trackingPaused ? 'disconnected' : 'connected',
+                          connected: !trackingPaused,
                           paired: true,
                           batteryLevel: data.batteryLevel ?? data.battery,
                           signalStatus: data.signalStatus || data.signal || child.signalStatus,
+                          trackingState,
+                          trackingPaused,
                           lastSeenAt: data.timestamp || new Date().toISOString(),
                           lastLocation: { type: 'Point', coordinates: [target[1], target[0]] },
                         }]
@@ -854,7 +919,7 @@ const FamilyDashboard = () => {
                   return {
                   ...child,
                   isPaired: true,
-                  connectionStatus: 'Tracking Live',
+                  connectionStatus: trackingBoundaryLabel(trackingState),
                   targetPosition: target,
                   trail: [...(child.trail || (child.position ? [child.position] : [])), target].slice(-12),
                   lastSeen: formatLastSeen(activityTimestamp),
@@ -863,11 +928,16 @@ const FamilyDashboard = () => {
                   signalStatus: data.signalStatus || data.signal || child.signalStatus,
                   geofenceStatus: data.geofenceStatus,
                   geofenceState,
+                  trackingState,
+                  trackingLabel: data.trackingLabel || trackingBoundaryLabel(trackingState),
+                  trackingPaused,
+                  privacyBoundary: data.privacyBoundary,
+                  sessionStatus: data.sessionStatus,
                   distanceMeters,
                   zone: data.zone || zoneFromGeofenceState(geofenceState),
                   devices: liveDevices,
-                  deviceState: deviceStateFor({ device: liveDevices?.[0], child: { ...child, position: target } }),
-                  status: geofenceState === 'breach' ? 'danger' : geofenceState === 'warning' ? 'warning' : 'safe',
+                  deviceState: deviceStateFor({ device: liveDevices?.[0], child: { ...child, position: target, trackingState, trackingPaused } }),
+                  status: trackingPaused ? 'danger' : geofenceState === 'breach' ? 'danger' : geofenceState === 'warning' ? 'warning' : 'safe',
                   }
                 })()
             : child
@@ -881,6 +951,8 @@ const FamilyDashboard = () => {
       if (!target.every(Number.isFinite)) return
       const distanceMeters = Number.isFinite(data.distanceMeters)
         ? data.distanceMeters
+        : Number.isFinite(data.privacyBoundary?.distanceMeters)
+          ? data.privacyBoundary.distanceMeters
         : metersBetween(guardianCenter, target)
 
       setChildren((prev) =>
@@ -890,6 +962,8 @@ const FamilyDashboard = () => {
               ? child
               : (() => {
                   const geofenceState = data.geofenceState || geofenceStateFromDistance(distanceMeters, data.geofenceStatus)
+                  const trackingState = data.trackingState || data.privacyBoundary?.state || 'tracking_active'
+                  const trackingPaused = Boolean(data.trackingPaused || data.sessionStatus === 'inactive' || trackingState === 'outside_event_zone')
                   const lastSeenAt = data.timestamp
                   if (!lastSeenAt) return child
                   const nextDevices = (child.devices || []).map((device) =>
@@ -897,11 +971,13 @@ const FamilyDashboard = () => {
                       ? {
                           ...device,
                           deviceId: data.deviceId || device.deviceId,
-                          status: 'connected',
-                          connected: true,
+                          status: trackingPaused ? 'disconnected' : 'connected',
+                          connected: !trackingPaused,
                           paired: true,
                           batteryLevel: data.batteryLevel ?? data.battery,
                           signalStatus: data.signalStatus || data.signal || device.signalStatus,
+                          trackingState,
+                          trackingPaused,
                           lastSeenAt,
                           lastLocation: { type: 'Point', coordinates: [target[1], target[0]] },
                         }
@@ -911,18 +987,20 @@ const FamilyDashboard = () => {
                     ? nextDevices
                     : [{
                         deviceId: data.deviceId,
-                        status: 'connected',
-                        connected: true,
+                        status: trackingPaused ? 'disconnected' : 'connected',
+                        connected: !trackingPaused,
                         paired: true,
                         batteryLevel: data.batteryLevel ?? data.battery,
                         signalStatus: data.signalStatus || data.signal || child.signalStatus,
+                        trackingState,
+                        trackingPaused,
                         lastSeenAt,
                         lastLocation: { type: 'Point', coordinates: [target[1], target[0]] },
                       }]
                   return {
                   ...child,
                   isPaired: true,
-                  connectionStatus: 'Tracking Live',
+                  connectionStatus: trackingBoundaryLabel(trackingState),
                   targetPosition: target,
                   trail: [...(child.trail || (child.position ? [child.position] : [])), target].slice(-14),
                   lastSeen: formatLastSeen(lastSeenAt),
@@ -931,11 +1009,16 @@ const FamilyDashboard = () => {
                   signalStatus: data.signalStatus || data.signal || child.signalStatus,
                   geofenceStatus: data.geofenceStatus,
                   geofenceState,
+                  trackingState,
+                  trackingLabel: data.trackingLabel || trackingBoundaryLabel(trackingState),
+                  trackingPaused,
+                  privacyBoundary: data.privacyBoundary,
+                  sessionStatus: data.sessionStatus,
                   distanceMeters,
                   zone: data.zone || zoneFromGeofenceState(geofenceState),
                   devices: liveDevices,
-                  deviceState: deviceStateFor({ device: liveDevices[0], child: { ...child, position: target } }),
-                  status: data.sosActive ? 'danger' : geofenceState === 'breach' ? 'danger' : geofenceState === 'warning' ? 'warning' : 'safe',
+                  deviceState: deviceStateFor({ device: liveDevices[0], child: { ...child, position: target, trackingState, trackingPaused } }),
+                  status: data.sosActive || trackingPaused ? 'danger' : geofenceState === 'breach' ? 'danger' : geofenceState === 'warning' ? 'warning' : 'safe',
                   }
                 })()
             : child
@@ -1009,6 +1092,8 @@ const FamilyDashboard = () => {
 
     on('child-location-update', updateChildLocation)
     on('DEVICE_LOCATION_UPDATED', updateDeviceLocation)
+    on('TRACKING_PRIVACY_BOUNDARY', updateDeviceLocation)
+    on('DEVICE_TRACKING_PAUSED', updateDeviceLocation)
     on('DEVICE_STATUS_UPDATED', updateDeviceActivity)
     on('DEVICE_RECONNECTED', updateDeviceActivity)
     on('child-status-change', updateChildStatus)
@@ -1017,6 +1102,8 @@ const FamilyDashboard = () => {
     return () => {
       off('child-location-update', updateChildLocation)
     off('DEVICE_LOCATION_UPDATED', updateDeviceLocation)
+      off('TRACKING_PRIVACY_BOUNDARY', updateDeviceLocation)
+      off('DEVICE_TRACKING_PAUSED', updateDeviceLocation)
       off('DEVICE_STATUS_UPDATED', updateDeviceActivity)
       off('DEVICE_RECONNECTED', updateDeviceActivity)
       off('child-status-change', updateChildStatus)

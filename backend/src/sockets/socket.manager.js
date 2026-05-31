@@ -464,7 +464,7 @@ class SocketManager {
 
   async handleDeviceLocationUpdate(socket, data) {
     try {
-      const { eventId, familyGroupId, memberId, childMemberId, deviceId, latitude, longitude, location, battery, signal, batteryLevel, signalStatus, geofenceStatus, geofenceState, distanceMeters, zone, sosActive, deviceSession } = data;
+      const { eventId, familyGroupId, memberId, childMemberId, deviceId, latitude, longitude, location, battery, signal, batteryLevel, signalStatus, geofenceStatus, geofenceState, distanceMeters, zone, sosActive, deviceSession, trackingState, trackingLabel, privacyBoundary, sessionStatus, trackingPaused } = data;
       const timestamp = data.timestamp || new Date().toISOString();
       const resolvedMemberId = childMemberId || memberId;
       const resolvedLocation = location || (
@@ -492,11 +492,18 @@ class SocketManager {
         distanceMeters,
         zone,
         deviceSession,
+        trackingState,
+        trackingLabel,
+        privacyBoundary,
+        sessionStatus,
+        trackingPaused: Boolean(trackingPaused),
         sosActive: Boolean(sosActive),
         timestamp,
       };
 
-      await this.touchDeviceActivity({ deviceId, timestamp, batteryLevel: resolvedBattery, signalStatus: resolvedSignal });
+      if (!trackingPaused) {
+        await this.touchDeviceActivity({ deviceId, timestamp, batteryLevel: resolvedBattery, signalStatus: resolvedSignal });
+      }
 
       if (familyGroupId) {
         this.io.to(`family:${familyGroupId}`).emit('DEVICE_LOCATION_UPDATED', payload);
@@ -517,6 +524,11 @@ class SocketManager {
           zone,
           signalStatus: resolvedSignal,
           deviceSession,
+          trackingState,
+          trackingLabel,
+          privacyBoundary,
+          sessionStatus,
+          trackingPaused: Boolean(trackingPaused),
           timestamp,
         });
       }
@@ -537,6 +549,11 @@ class SocketManager {
           batteryLevel: resolvedBattery,
           signalStatus: resolvedSignal,
           geofenceStatus,
+          trackingState,
+          trackingLabel,
+          privacyBoundary,
+          sessionStatus,
+          trackingPaused: Boolean(trackingPaused),
           sosActive: Boolean(sosActive),
           timestamp,
         });

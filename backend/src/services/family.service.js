@@ -3,6 +3,16 @@ const { Event, FamilyGroup, DeviceTracking } = require('../models');
 const { AppError } = require('../utils/errors');
 
 const generateCode = () => Math.random().toString(36).slice(2, 8).toUpperCase();
+const EVENT_TRACKING_STATES = {
+  ACTIVE: 'tracking_active',
+  NEAR_BOUNDARY: 'near_boundary',
+  OUTSIDE: 'outside_event_zone',
+};
+const TRACKING_LABELS = {
+  [EVENT_TRACKING_STATES.ACTIVE]: 'Tracking Active',
+  [EVENT_TRACKING_STATES.NEAR_BOUNDARY]: 'Near Boundary',
+  [EVENT_TRACKING_STATES.OUTSIDE]: 'Outside Event Zone',
+};
 
 const buildLeaderGuardian = (userId, data = {}) => ({
   user: userId,
@@ -13,8 +23,81 @@ const buildLeaderGuardian = (userId, data = {}) => ({
 });
 
 class FamilyService {
+  metersBetween(a = {}, b = {}) {
+    const lat1 = Number(a.latitude);
+    const lon1 = Number(a.longitude);
+    const lat2 = Number(b.latitude);
+    const lon2 = Number(b.longitude);
+    if (![lat1, lon1, lat2, lon2].every(Number.isFinite)) return null;
+
+    const toRad = (value) => (value * Math.PI) / 180;
+    const earthRadiusMeters = 6371000;
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const h =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+    return earthRadiusMeters * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+  }
+
+  isEventTrackingActive(event, now = new Date()) {
+    if (!event) return false;
+    if (!['published', 'active', 'ongoing'].includes(event.status)) return false;
+    const startDate = event.schedule?.startDate ? new Date(event.schedule.startDate) : null;
+    const endDate = event.schedule?.endDate ? new Date(event.schedule.endDate) : null;
+    const startsInFuture = startDate && Number.isFinite(startDate.getTime()) && startDate.getTime() > now.getTime();
+    const ended = endDate && Number.isFinite(endDate.getTime()) && endDate.getTime() < now.getTime();
+    return !startsInFuture && !ended;
+  }
+
+  buildEventBoundary(event, point = null, deviceSession = null) {
+    if (!event?.venue?.location?.coordinates?.length) return null;
+    const [longitude, latitude] = event.venue.location.coordinates;
+    const radiusMeters = Number(event.safetyRadiusMeters || event.privacyBoundary?.activeFestivalRadiusMeters || 170);
+    const threshold = Number(event.privacyBoundary?.nearBoundaryThreshold || 0.85);
+    const inactiveMinutes = Number(event.privacyBoundary?.autoExpireAfterInactiveMinutes || 20);
+    const now = new Date();
+    const distanceMeters = point ? this.metersBetween({ latitude, longitude }, point) : null;
+    const active = this.isEventTrackingActive(event, now);
+    const lastActivity = deviceSession?.updatedAt || deviceSession?.sessionInfo?.sessionStart;
+    const inactiveMs = lastActivity ? now.getTime() - new Date(lastActivity).getTime() : 0;
+    const expiredByInactivity =
+      Number.isFinite(inactiveMinutes) &&
+      inactiveMinutes > 0 &&
+      inactiveMs > inactiveMinutes * 60 * 1000;
+    const outsideRadius = Number.isFinite(distanceMeters) && distanceMeters > radiusMeters;
+    const nearBoundary = Number.isFinite(distanceMeters) && distanceMeters >= radiusMeters * threshold;
+    const state = !active || expiredByInactivity || outsideRadius
+      ? EVENT_TRACKING_STATES.OUTSIDE
+      : nearBoundary
+        ? EVENT_TRACKING_STATES.NEAR_BOUNDARY
+        : EVENT_TRACKING_STATES.ACTIVE;
+
+    return {
+      center: { latitude, longitude },
+      radiusMeters,
+      distanceMeters,
+      state,
+      label: TRACKING_LABELS[state],
+      sessionActive: active && !expiredByInactivity && !outsideRadius,
+      eventStatus: event.status,
+      nearBoundaryThreshold: threshold,
+      autoExpireAfterInactiveMinutes: inactiveMinutes,
+      reason: !active
+        ? 'event_session_inactive'
+        : expiredByInactivity
+          ? 'inactive_session_expired'
+          : outsideRadius
+            ? 'outside_event_radius'
+            : nearBoundary
+              ? 'near_event_boundary'
+              : 'inside_event_radius',
+    };
+  }
+
   buildEventSummary(event) {
     if (!event) return null;
+    const eventBoundary = this.buildEventBoundary(event);
     return {
       _id: event._id,
       name: event.name,
@@ -29,6 +112,8 @@ class FamilyService {
       date: event.schedule?.startDate,
       attendees: event.statistics?.totalAttendees || event.attendees?.length || 0,
       checkedIn: event.statistics?.checkedIn || 0,
+      safetyRadiusMeters: eventBoundary?.radiusMeters,
+      privacyBoundary: eventBoundary,
     };
   }
 
@@ -435,6 +520,12 @@ class FamilyService {
     const child = group.childMembers.id(pairing.childMemberId);
     if (!child) throw new AppError('Child member not found', 404);
     if (!group.event) throw new AppError('Family group must be linked to an event before pairing a device', 400);
+    const event = await Event.findById(group.event);
+    if (!event) throw new AppError('Linked event not found', 404);
+    const eventBoundary = this.buildEventBoundary(event);
+    if (!eventBoundary?.center || !Number.isFinite(eventBoundary.radiusMeters)) {
+      throw new AppError('Linked event requires center coordinates and an active festival radius before device tracking can start', 400);
+    }
 
     const initialCoordinates =
       child.lastLocation?.coordinates?.length === 2
@@ -466,6 +557,7 @@ class FamilyService {
           familyGroupId: group._id,
           childMemberId: child._id,
           pairingCodeId: pairing._id,
+          privacyBoundary: eventBoundary,
         },
       },
       status: 'active',
@@ -487,6 +579,7 @@ class FamilyService {
       familyCode: group.code,
       familyName: group.name,
       eventId: group.event,
+      eventBoundary,
       deviceId,
       deviceType: deviceMeta.deviceType,
       deviceLabel: deviceMeta.deviceLabel,
@@ -522,6 +615,24 @@ class FamilyService {
     if (!deviceSession) {
       throw new AppError('Active device session not found', 403);
     }
+    const event = group.event ? await Event.findById(group.event) : null;
+    const eventBoundary = this.buildEventBoundary(
+      event,
+      { latitude: locationData.latitude, longitude: locationData.longitude },
+      deviceSession
+    );
+    if (!eventBoundary?.center) {
+      throw new AppError('Linked event requires center coordinates and an active festival radius before device tracking can start', 400);
+    }
+    const trackingPaused = !eventBoundary.sessionActive;
+    const geofenceStatus = trackingPaused ? 'outside' : locationData.geofenceStatus || 'inside';
+    const trackingPayload = {
+      trackingState: eventBoundary.state,
+      trackingLabel: eventBoundary.label,
+      privacyBoundary: eventBoundary,
+      sessionStatus: trackingPaused ? 'inactive' : 'active',
+      trackingPaused,
+    };
 
     deviceSession.location = {
       type: 'Point',
@@ -537,8 +648,17 @@ class FamilyService {
     };
     deviceSession.geofenceStatus = {
       ...deviceSession.geofenceStatus,
-      inside: locationData.geofenceStatus !== 'outside',
+      inside: geofenceStatus !== 'outside',
     };
+    deviceSession.metadata = {
+      ...(deviceSession.metadata?.toObject ? deviceSession.metadata.toObject() : deviceSession.metadata || {}),
+      rawData: {
+        ...(deviceSession.metadata?.rawData || {}),
+        ...trackingPayload,
+        lastPrivacyCheckAt: new Date(),
+      },
+    };
+    if (trackingPaused) deviceSession.endSession();
     await deviceSession.save();
 
     child.lastLocation = {
@@ -547,13 +667,20 @@ class FamilyService {
     };
     child.lastSeenAt = new Date();
     child.batteryLevel = locationData.batteryLevel;
-    child.geofenceStatus = locationData.geofenceStatus || 'inside';
-    child.deviceStatus = 'paired';
+    child.geofenceStatus = geofenceStatus;
+    child.deviceStatus = trackingPaused ? 'offline' : 'paired';
     child.paired = true;
-    child.connected = true;
+    child.connected = !trackingPaused;
     await group.save();
 
-    return { groupId: group._id, childMemberId: child._id, deviceId, child };
+    return {
+      groupId: group._id,
+      eventId: group.event,
+      childMemberId: child._id,
+      deviceId,
+      child,
+      ...trackingPayload,
+    };
   }
 
   async getOrganizerFamilySummary(eventId, emergency = false) {

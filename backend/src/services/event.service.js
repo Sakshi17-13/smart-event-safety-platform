@@ -32,16 +32,30 @@ class EventService {
   normalizeEventData(eventData = {}) {
     const startDate = new Date(eventData.schedule?.startDate || eventData.date || Date.now());
     const endDate = new Date(eventData.schedule?.endDate || startDate.getTime() + 8 * 60 * 60 * 1000);
-    const latitude = Number(eventData.latitude ?? eventData.venue?.location?.coordinates?.[1] ?? 19.076);
-    const longitude = Number(eventData.longitude ?? eventData.venue?.location?.coordinates?.[0] ?? 72.8777);
+    const latitude = Number(eventData.latitude ?? eventData.venue?.location?.coordinates?.[1]);
+    const longitude = Number(eventData.longitude ?? eventData.venue?.location?.coordinates?.[0]);
+    const safetyRadiusMeters = Number(eventData.safetyRadiusMeters ?? eventData.privacyBoundary?.activeFestivalRadiusMeters ?? 170);
     const venueName = eventData.venue?.name || eventData.location || 'Event Venue';
     const address = eventData.venue?.address || {};
+
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+      throw new AppError('Event center coordinates are required before enabling privacy-aware tracking', 400);
+    }
+
+    if (!Number.isFinite(safetyRadiusMeters) || safetyRadiusMeters < 10) {
+      throw new AppError('Active festival radius must be at least 10 meters', 400);
+    }
 
     return {
       name: eventData.name,
       description: eventData.description,
       category: eventData.category || 'other',
       status: eventData.status || 'draft',
+      safetyRadiusMeters,
+      privacyBoundary: {
+        ...(eventData.privacyBoundary || {}),
+        activeFestivalRadiusMeters: safetyRadiusMeters,
+      },
       venue: {
         ...eventData.venue,
         name: venueName,
@@ -73,6 +87,8 @@ class EventService {
       latitude: eventObj.venue?.location?.coordinates?.[1],
       longitude: eventObj.venue?.location?.coordinates?.[0],
       capacity: eventObj.venue?.capacity,
+      safetyRadiusMeters: eventObj.safetyRadiusMeters,
+      privacyBoundary: eventObj.privacyBoundary,
       date: eventObj.schedule?.startDate,
       attendees: eventObj.statistics?.totalAttendees || eventObj.attendees?.length || 0,
       checkedIn: eventObj.statistics?.checkedIn || 0,
