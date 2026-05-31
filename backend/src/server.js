@@ -10,14 +10,14 @@ const logger = require('./utils/logger');
 
 const PORT = parseInt(process.env.PORT, 10) || 5001;
 const PORT_FALLBACK_LIMIT = parseInt(process.env.PORT_FALLBACK_LIMIT, 10) || 10;
+const isDevelopment = (process.env.NODE_ENV || 'development') === 'development';
 const MONGODB_URI =
   process.env.MONGODB_URI ||
   process.env.MONGODB_URL ||
   process.env.MONGO_URI ||
-  'mongodb://localhost:27017/smart-event-safety';
+  (isDevelopment ? 'mongodb://localhost:27017/smart-event-safety' : null);
 
 const server = http.createServer(app);
-const isDevelopment = (process.env.NODE_ENV || 'development') === 'development';
 const runtimeDir = path.resolve(__dirname, '../.runtime');
 const runtimePortFile = path.join(runtimeDir, 'backend-port.json');
 
@@ -52,6 +52,10 @@ function writeRuntimePort(activePort) {
 
 async function initializeDatabase() {
   try {
+    if (!MONGODB_URI) {
+      throw new Error('MONGODB_URI is required in production');
+    }
+
     setDatabaseStatus('connecting');
     await mongoose.connect(MONGODB_URI, {
       maxPoolSize: parseInt(process.env.MONGODB_POOL_SIZE, 10) || 10,

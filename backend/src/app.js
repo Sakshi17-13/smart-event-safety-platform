@@ -9,6 +9,7 @@ require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 const apiRoutes = require('./routes');
 const { errorHandler, notFoundHandler } = require('./middleware/error.middleware');
 const createMockFallbackMiddleware = require('./middleware/mockFallback.middleware');
+const { createCorsOptions } = require('./config/cors.config');
 
 const app = express();
 const isDevelopment = (process.env.NODE_ENV || 'development') === 'development';
@@ -21,16 +22,7 @@ app.locals.dbError = null;
 
 app.use(helmet());
 
-app.use(
-  cors({
-    origin: [
-      'http://localhost:3000',
-      'http://localhost:5173',
-      'https://smart-event-safety-platform.vercel.app',
-    ],
-    credentials: true,
-  })
-);
+app.use(cors(createCorsOptions()));
 
 app.use(morgan('combined'));
 

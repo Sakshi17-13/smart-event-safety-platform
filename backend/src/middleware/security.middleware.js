@@ -1,22 +1,7 @@
 const helmet = require('helmet');
 const cors = require('cors');
 const logger = require('../utils/logger');
-
-const corsOptions = {
-  origin: (origin, callback) => {
-    const allowedOrigins = process.env.CORS_ORIGIN?.split(',') || ['http://localhost:5173'];
-    
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      logger.warn('CORS blocked request', { origin });
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-};
+const { createCorsOptions } = require('../config/cors.config');
 
 const securityMiddleware = (app) => {
   app.use(helmet({
@@ -38,7 +23,7 @@ const securityMiddleware = (app) => {
     xssFilter: true,
   }));
 
-  app.use(cors(corsOptions));
+  app.use(cors(createCorsOptions()));
 
   app.use((req, res, next) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');

@@ -1,8 +1,10 @@
 import axios from 'axios'
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api'
+const normalizeBaseUrl = (url) => (url || '/api').trim().replace(/\/+$/, '')
+const API_BASE_URL = normalizeBaseUrl(import.meta.env.VITE_API_URL)
 const ACCESS_TOKEN_KEY = 'accessToken'
 const REFRESH_TOKEN_KEY = 'refreshToken'
+const authTokenListeners = new Set()
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -51,11 +53,25 @@ const applyAuthorizationHeader = (token = getAccessToken()) => {
   }
 }
 
+const notifyAuthTokensChanged = () => {
+  const tokens = {
+    accessToken: getAccessToken(),
+    refreshToken: getRefreshToken(),
+  }
+  authTokenListeners.forEach((listener) => listener(tokens))
+}
+
+export const onAuthTokensChanged = (listener) => {
+  authTokenListeners.add(listener)
+  return () => authTokenListeners.delete(listener)
+}
+
 export const setAuthTokens = (tokens = {}) => {
   const normalized = normalizeTokens(tokens)
   if (normalized.accessToken) writeStorage(ACCESS_TOKEN_KEY, normalized.accessToken)
   if (normalized.refreshToken) writeStorage(REFRESH_TOKEN_KEY, normalized.refreshToken)
   applyAuthorizationHeader(normalized.accessToken || getAccessToken())
+  notifyAuthTokensChanged()
   return normalized
 }
 
@@ -63,6 +79,7 @@ export const clearAuthTokens = () => {
   removeStorage(ACCESS_TOKEN_KEY)
   removeStorage(REFRESH_TOKEN_KEY)
   applyAuthorizationHeader(null)
+  notifyAuthTokensChanged()
 }
 
 export const getStoredAccessToken = getAccessToken
@@ -92,6 +109,8 @@ const refreshAccessToken = async () => {
 
   return refreshRequest
 }
+
+export const refreshStoredAuthToken = refreshAccessToken
 
 // Request interceptor to add auth token
 api.interceptors.request.use(

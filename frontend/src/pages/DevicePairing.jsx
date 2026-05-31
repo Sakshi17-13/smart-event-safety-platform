@@ -4,7 +4,7 @@ import { familyAPI } from '../api'
 import { Activity, Battery, CheckCircle, Link, MapPin, Maximize2, Radio, Shield, Signal, Smartphone, Tablet, Watch, Zap } from 'lucide-react'
 
 const DEVICE_KEY = 'smartEventDeviceIdentity'
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || window.location.origin
+const SOCKET_URL = (import.meta.env.VITE_SOCKET_URL || window.location.origin).trim().replace(/\/+$/, '')
 
 const deviceTypes = [
   { value: 'watch', label: 'Smart Watch', prefix: 'WATCH', icon: Watch },
@@ -138,6 +138,9 @@ const DevicePairing = () => {
         familyCode: pairingData.familyCode,
       },
       transports: ['websocket', 'polling'],
+      withCredentials: true,
+      reconnectionAttempts: 8,
+      reconnectionDelayMax: 10000,
     })
 
     socket.on('connect', () => {

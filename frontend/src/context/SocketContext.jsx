@@ -4,6 +4,7 @@ import { realtimeSimulation } from '../services/realtimeSimulation'
 import { useAuth } from './AuthContext'
 import { getStoredAccessToken } from '../api/axios'
 import { eventsAPI, familyAPI } from '../api'
+import { demoModeEnabled } from '../config/runtime'
 
 const SocketContext = createContext(null)
 
@@ -26,7 +27,7 @@ export const SocketProvider = ({ children }) => {
 
     const familyResponse = await familyAPI.getMyGroups().catch(() => ({ data: { data: [] } }))
     const familyGroups = familyResponse.data.data || []
-    realtimeSimulation.configureFamilyGroups(familyGroups)
+    if (demoModeEnabled) realtimeSimulation.configureFamilyGroups(familyGroups)
 
     familyGroups.filter(Boolean).forEach((group) => {
       const familyGroupId = group._id || group.familyGroupId
@@ -58,7 +59,7 @@ export const SocketProvider = ({ children }) => {
     if (isAuthenticated) {
       const token = getStoredAccessToken()
       const socket = socketService.connect(token)
-      realtimeSimulation.start()
+      if (demoModeEnabled) realtimeSimulation.start()
       setIsConnected(socketService.isConnected())
 
       socket.on('connect', () => {
@@ -70,7 +71,7 @@ export const SocketProvider = ({ children }) => {
 
       return () => {
         socketService.disconnect()
-        realtimeSimulation.stop()
+        if (demoModeEnabled) realtimeSimulation.stop()
         setIsConnected(false)
       }
     }
@@ -85,35 +86,41 @@ export const SocketProvider = ({ children }) => {
     const handleDevicePaired = () => syncRealtimeRooms()
     const handleMemberRemoved = () => syncRealtimeRooms()
 
-    realtimeSimulation.on('FAMILY_REGISTERED', handleRegistration)
-    realtimeSimulation.on('FAMILY_GROUP_CREATED', handleGroupCreated)
-    realtimeSimulation.on('FAMILY_GROUP_DELETED', handleGroupDeleted)
-    realtimeSimulation.on('DEVICE_PAIRED', handleDevicePaired)
-    realtimeSimulation.on('FAMILY_MEMBER_REMOVED', handleMemberRemoved)
+    if (demoModeEnabled) {
+      realtimeSimulation.on('FAMILY_REGISTERED', handleRegistration)
+      realtimeSimulation.on('FAMILY_GROUP_CREATED', handleGroupCreated)
+      realtimeSimulation.on('FAMILY_GROUP_DELETED', handleGroupDeleted)
+      realtimeSimulation.on('DEVICE_PAIRED', handleDevicePaired)
+      realtimeSimulation.on('FAMILY_MEMBER_REMOVED', handleMemberRemoved)
+    }
 
     return () => {
-      realtimeSimulation.off('FAMILY_REGISTERED', handleRegistration)
-      realtimeSimulation.off('FAMILY_GROUP_CREATED', handleGroupCreated)
-      realtimeSimulation.off('FAMILY_GROUP_DELETED', handleGroupDeleted)
-      realtimeSimulation.off('DEVICE_PAIRED', handleDevicePaired)
-      realtimeSimulation.off('FAMILY_MEMBER_REMOVED', handleMemberRemoved)
+      if (demoModeEnabled) {
+        realtimeSimulation.off('FAMILY_REGISTERED', handleRegistration)
+        realtimeSimulation.off('FAMILY_GROUP_CREATED', handleGroupCreated)
+        realtimeSimulation.off('FAMILY_GROUP_DELETED', handleGroupDeleted)
+        realtimeSimulation.off('DEVICE_PAIRED', handleDevicePaired)
+        realtimeSimulation.off('FAMILY_MEMBER_REMOVED', handleMemberRemoved)
+      }
     }
   }, [isAuthenticated, syncRealtimeRooms])
 
   const on = (event, callback) => {
     socketService.on(event, callback)
-    realtimeSimulation.on(event, callback)
+    if (demoModeEnabled) realtimeSimulation.on(event, callback)
   }
 
   const off = (event, callback) => {
     socketService.off(event, callback)
-    realtimeSimulation.off(event, callback)
+    if (demoModeEnabled) realtimeSimulation.off(event, callback)
   }
 
   const emit = (event, data) => {
     socketService.emit(event, data)
-    realtimeSimulation.emit(event, data)
-    realtimeSimulation.handleRealtimeEvent?.(event, data || {})
+    if (demoModeEnabled) {
+      realtimeSimulation.emit(event, data)
+      realtimeSimulation.handleRealtimeEvent?.(event, data || {})
+    }
   }
 
   const value = {

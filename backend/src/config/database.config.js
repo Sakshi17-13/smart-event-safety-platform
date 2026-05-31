@@ -12,7 +12,11 @@ class Database {
         process.env.MONGODB_URI ||
         process.env.MONGODB_URL ||
         process.env.MONGO_URI ||
-        'mongodb://localhost:27017/smart-event-safety';
+        ((process.env.NODE_ENV || 'development') === 'development' ? 'mongodb://localhost:27017/smart-event-safety' : null);
+
+      if (!mongoUri) {
+        throw new Error('MONGODB_URI is required in production');
+      }
       
       const options = {
         maxPoolSize: parseInt(process.env.MONGODB_POOL_SIZE, 10) || 10,

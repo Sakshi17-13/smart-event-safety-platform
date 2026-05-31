@@ -1,18 +1,22 @@
 import api from './axios'
 import { demoStore } from '../services/demoStore'
+import { demoModeEnabled } from '../config/runtime'
 
 const withLocalFallback = async (request, fallback) => {
   try {
     return await request()
   } catch (error) {
-    if (error.response?.status && ![404, 503].includes(error.response.status)) throw error
+    if (!demoModeEnabled || (error.response?.status && ![404, 503].includes(error.response.status))) throw error
     return fallback()
   }
 }
 
 export const alertsAPI = {
   getAll: (params) =>
-    demoStore.apiResponse(demoStore.getState().alerts, 'Alerts retrieved from local development state'),
+    withLocalFallback(
+      () => api.get('/alerts', { params }),
+      () => demoStore.apiResponse(demoStore.getState().alerts, 'Alerts retrieved from local development state')
+    ),
   getById: (id) => api.get(`/alerts/${id}`),
   create: (data) =>
     withLocalFallback(

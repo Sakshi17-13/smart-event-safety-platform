@@ -1,25 +1,38 @@
 import { io } from 'socket.io-client'
+import { clearAuthTokens, getStoredAccessToken, onAuthTokensChanged, refreshStoredAuthToken } from '../api/axios'
 
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || window.location.origin
+const SOCKET_URL = (import.meta.env.VITE_SOCKET_URL || window.location.origin).trim().replace(/\/+$/, '')
 
 class SocketService {
   constructor() {
     this.socket = null
     this.listeners = new Map()
     this.roomIntents = new Map()
+    this.unsubscribeAuthTokens = null
+    this.refreshingSocketToken = false
   }
 
-  connect(token) {
+  connect(token = getStoredAccessToken()) {
     if (this.socket?.connected) return this.socket
     if (this.socket) this.socket.disconnect()
 
     this.socket = io(SOCKET_URL, {
       auth: { token },
       transports: ['websocket', 'polling'],
+      withCredentials: true,
+      reconnectionAttempts: 8,
+      reconnectionDelayMax: 10000,
+    })
+
+    this.unsubscribeAuthTokens?.()
+    this.unsubscribeAuthTokens = onAuthTokensChanged(({ accessToken }) => {
+      if (!this.socket) return
+      this.socket.auth = { ...this.socket.auth, token: accessToken }
     })
 
     this.socket.on('connect', () => {
       console.log('Socket connected:', this.socket.id)
+      this.refreshingSocketToken = false
       this.replayRoomIntents()
     })
 
@@ -31,11 +44,44 @@ class SocketService {
       console.error('Socket error:', error)
     })
 
+    this.socket.on('connect_error', async (error) => {
+      const code = error?.data?.code
+      if (code !== 'TOKEN_EXPIRED' && code !== 'AUTH_FAILED') return
+
+      this.socket.io.opts.reconnection = false
+      if (this.refreshingSocketToken) return
+      this.refreshingSocketToken = true
+
+      try {
+        const accessToken = await refreshStoredAuthToken()
+        if (!accessToken || !this.socket) {
+          this.expireSession()
+          return
+        }
+
+        this.socket.auth = { ...this.socket.auth, token: accessToken }
+        this.socket.io.opts.reconnection = true
+        this.socket.connect()
+      } catch {
+        this.expireSession()
+      } finally {
+        this.refreshingSocketToken = false
+      }
+    })
+
     this.listeners.forEach((callbacks, event) => {
       callbacks.forEach((callback) => this.socket.on(event, callback))
     })
 
     return this.socket
+  }
+
+  expireSession() {
+    clearAuthTokens()
+    this.disconnect()
+    if (window.location.pathname !== '/login') {
+      window.location.href = '/login'
+    }
   }
 
   disconnect() {
@@ -45,6 +91,9 @@ class SocketService {
       this.listeners.clear()
       this.roomIntents.clear()
     }
+    this.unsubscribeAuthTokens?.()
+    this.unsubscribeAuthTokens = null
+    this.refreshingSocketToken = false
   }
 
   on(event, callback) {

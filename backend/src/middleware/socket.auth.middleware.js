@@ -1,24 +1,44 @@
 const tokenUtils = require('../utils/token.utils');
 const logger = require('../utils/logger');
+const { FamilyGroup } = require('../models');
 
 class SocketAuthMiddleware {
-  authenticate(socket, next) {
+  async authenticate(socket, next) {
     try {
       const deviceId = socket.handshake.auth.deviceId;
       const familyCode = socket.handshake.auth.familyCode;
-      const allowDeviceSession = (process.env.NODE_ENV || 'development') === 'development' && process.env.DEV_ALLOW_NO_DB === 'true';
 
-      if (deviceId && familyCode && allowDeviceSession) {
+      if (deviceId && familyCode) {
+        const allowDevelopmentDevice =
+          (process.env.NODE_ENV || 'development') === 'development' &&
+          process.env.DEV_ALLOW_NO_DB === 'true' &&
+          FamilyGroup.db.readyState !== 1;
+        const familyGroup = allowDevelopmentDevice
+          ? null
+          : await FamilyGroup.findOne({
+              code: familyCode.toUpperCase(),
+              'childMembers.wearableDeviceId': deviceId,
+              status: 'active',
+            });
+
+        if (!familyGroup && !allowDevelopmentDevice) {
+          const authError = new Error('Device session not authorized');
+          authError.data = { code: 'DEVICE_AUTH_FAILED' };
+          return next(authError);
+        }
+
         socket.user = {
           userId: deviceId,
           role: 'DEVICE',
           deviceId,
           familyCode,
+          familyGroupId: familyGroup?._id?.toString(),
+          eventId: familyGroup?.event?.toString(),
           firstName: 'Wearable',
           lastName: 'Device',
         };
 
-        logger.info('Development device socket authenticated', {
+        logger.info('Device socket authenticated', {
           socketId: socket.id,
           deviceId,
           familyCode,
@@ -31,7 +51,9 @@ class SocketAuthMiddleware {
 
       if (!token) {
         logger.warn('Socket connection attempt without token', { ip: socket.handshake.address });
-        return next(new Error('Authentication token required'));
+        const authError = new Error('Authentication token required');
+        authError.data = { code: 'TOKEN_REQUIRED' };
+        return next(authError);
       }
 
       const decoded = tokenUtils.verifyAccessToken(token);
@@ -52,12 +74,15 @@ class SocketAuthMiddleware {
 
       next();
     } catch (error) {
+      const expired = error.message === 'Access token expired' || error.name === 'TokenExpiredError';
       logger.warn('Socket authentication failed', {
         socketId: socket.id,
         error: error.message,
         ip: socket.handshake.address,
       });
-      next(new Error('Authentication failed'));
+      const authError = new Error(expired ? 'Token expired' : 'Authentication failed');
+      authError.data = { code: expired ? 'TOKEN_EXPIRED' : 'AUTH_FAILED' };
+      next(authError);
     }
   }
 

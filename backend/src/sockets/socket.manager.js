@@ -2,6 +2,7 @@ const { Server } = require('socket.io');
 const socketAuth = require('../middleware/socket.auth.middleware');
 const logger = require('../utils/logger');
 const { Event, FamilyGroup, User, DeviceTracking, Alert, IncidentLog } = require('../models');
+const { createSocketCorsOptions } = require('../config/cors.config');
 
 class SocketManager {
   constructor() {
@@ -14,11 +15,7 @@ class SocketManager {
 
   initialize(server) {
     this.io = new Server(server, {
-      cors: {
-        origin: process.env.CLIENT_URL?.split(',') || ['http://localhost:3000', 'http://localhost:5173'],
-        methods: ['GET', 'POST'],
-        credentials: true,
-      },
+      cors: createSocketCorsOptions(),
       pingTimeout: 60000,
       pingInterval: 25000,
       transports: ['websocket', 'polling'],

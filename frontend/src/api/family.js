@@ -1,9 +1,10 @@
 import api from './axios'
 import { demoStore } from '../services/demoStore'
+import { demoModeEnabled } from '../config/runtime'
 import { normalizeEvent } from './events'
 
 const shouldUseLocalFallback = (error) =>
-  !error.response || [404, 503].includes(error.response.status)
+  demoModeEnabled && (!error.response || [404, 503].includes(error.response.status))
 
 const withLocalFallback = async (request, fallback) => {
   try {
