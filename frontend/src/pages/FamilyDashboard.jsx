@@ -1341,14 +1341,60 @@ const FamilyDashboard = () => {
 
       {!isLoadingFamilyGroups && (
       <>
+      {/* Metrics Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <motion.div layout className="glass rounded-xl p-6 border-glow">
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-3 rounded-lg bg-primary/20">
+              <Users size={24} className="text-primary" />
+            </div>
+            <span className={`text-xs px-2 py-1 rounded ${isConnected ? 'bg-success/20 text-success' : 'bg-danger/20 text-danger'}`}>
+              {isConnected ? 'Live' : 'Offline'}
+            </span>
+          </div>
+          <p className="text-text-muted text-sm mb-1">Family Members</p>
+          <p className="text-3xl font-bold text-text-primary">{displayChildren.length}</p>
+        </motion.div>
+        <motion.div layout className="glass rounded-xl p-6 border-glow">
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-3 rounded-lg bg-success/20">
+              <CheckCircle size={24} className="text-success" />
+            </div>
+            <span className="text-xs px-2 py-1 rounded bg-success/20 text-success">Safe</span>
+          </div>
+          <p className="text-text-muted text-sm mb-1">Safe Members</p>
+          <p className="text-3xl font-bold text-text-primary">{safeCount}</p>
+        </motion.div>
+        <motion.div layout className="glass rounded-xl p-6 border-glow">
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-3 rounded-lg bg-warning/20">
+              <AlertTriangle size={24} className="text-warning" />
+            </div>
+            <span className="text-xs px-2 py-1 rounded bg-warning/20 text-warning">{warningCount + breachCount} active</span>
+          </div>
+          <p className="text-text-muted text-sm mb-1">Alerts</p>
+          <p className="text-3xl font-bold text-text-primary">{warningCount + breachCount}</p>
+        </motion.div>
+        <motion.div layout className="glass rounded-xl p-6 border-glow">
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-3 rounded-lg bg-accent/20">
+              <Navigation size={24} className="text-accent" />
+            </div>
+            <span className="text-xs px-2 py-1 rounded bg-primary/20 text-primary">Streaming</span>
+          </div>
+          <p className="text-text-muted text-sm mb-1">Tracking Streams</p>
+          <p className="text-3xl font-bold text-text-primary">{liveTrackedCount}</p>
+        </motion.div>
+      </div>
+
       {/* Main Content */}
-      <div className="grid grid-cols-1 gap-6 sm:gap-8">
+      <div className="grid grid-cols-1 xl:grid-cols-[1.15fr_0.85fr] gap-6 items-start">
         {/* Map Section */}
-        <div className="w-full max-w-[1920px] mx-auto">
+        <div className="min-w-0">
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className={`glass rounded-3xl overflow-hidden border border-primary/25 h-[580px] sm:h-[700px] xl:h-[820px] 2xl:h-[880px] relative shadow-[0_0_48px_rgba(59,130,246,0.12)] ${
+            className={`glass rounded-xl overflow-hidden border-glow h-[560px] sm:h-[680px] xl:h-[760px] relative ${
               displayChildren.some((child) => child.isPaired && child.geofenceState === 'breach')
                 ? 'ring-1 ring-danger shadow-[0_0_28px_rgba(239,68,68,0.24)]'
                 : displayChildren.some((child) => child.isPaired && child.geofenceState === 'warning')
@@ -1525,17 +1571,24 @@ const FamilyDashboard = () => {
           </motion.div>
         </div>
 
-        {/* Command Panels */}
-        <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 sm:gap-6 items-start auto-rows-min">
-          <div className="xl:col-span-5 xl:order-2">
+        <div className="grid grid-cols-1 gap-6">
+          <div>
+            <LiveActivityFeed title="Family Realtime Timeline" limit={6} compact includeEvent={includeFamilyTimelineEvent} starterEvents={starterTimelineEvents} />
+          </div>
+          <div>
             <LiveActivityFeed title="Realtime Alerts" limit={5} compact includeEvent={includeFamilyTimelineEvent} starterEvents={starterTimelineEvents} />
           </div>
+        </div>
+      </div>
+
+      {/* Lower Grid */}
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start auto-rows-min">
 
           {activeFamilyGroup && (
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
-              className="glass rounded-2xl p-4 border border-border/80 xl:col-span-3 xl:order-5"
+              className="glass rounded-xl p-6 border-glow xl:col-span-4 xl:order-6"
             >
               <div className="flex items-start justify-between gap-3 mb-3">
                 <h3 className="text-sm font-bold text-text-secondary flex items-center gap-2">
@@ -1559,7 +1612,7 @@ const FamilyDashboard = () => {
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
-              className="glass rounded-2xl p-4 border border-border/80 space-y-3 xl:col-span-3 xl:order-6"
+              className="glass rounded-xl p-6 border-glow space-y-3 xl:col-span-4 xl:order-5"
             >
               <h3 className="text-sm font-bold text-text-secondary flex items-center gap-2">
                 <Shield className="text-primary" size={20} />
@@ -1605,7 +1658,7 @@ const FamilyDashboard = () => {
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
-              className="glass rounded-2xl p-4 border border-border/80 space-y-3 xl:col-span-4 xl:order-3"
+              className="glass rounded-xl p-6 border-glow space-y-3 xl:col-span-4 xl:order-2"
             >
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-bold text-text-secondary flex items-center gap-2">
@@ -1659,7 +1712,7 @@ const FamilyDashboard = () => {
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
-              className="glass rounded-2xl p-4 border border-border/80 space-y-3 xl:col-span-3 xl:order-4"
+              className="glass rounded-xl p-6 border-glow space-y-3 xl:col-span-4 xl:order-3"
             >
               <h3 className="text-sm font-bold text-text-secondary flex items-center gap-2">
                 <Users className="text-primary" size={20} />
@@ -1707,7 +1760,7 @@ const FamilyDashboard = () => {
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="space-y-4 xl:col-span-7 xl:order-1"
+            className="space-y-4 xl:col-span-8 xl:order-1"
           >
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-1">
               <h3 className="text-xl font-black text-text-primary flex items-center gap-2">
@@ -1719,7 +1772,7 @@ const FamilyDashboard = () => {
               </span>
             </div>
             {activeFamilyGroup && (
-              <form onSubmit={submitChild} className="glass rounded-2xl p-4 border border-border/80 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_110px_150px_auto] gap-2 items-center">
+              <form onSubmit={submitChild} className="glass rounded-xl p-6 border-glow grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_110px_150px_auto] gap-3 items-center">
                 <input value={childForm.name} onChange={(event) => setChildForm({ ...childForm, name: event.target.value })} className="w-full px-3 py-2 bg-surfaceLight border border-border rounded-lg text-text-primary" placeholder="Child member name" required />
                 <input type="number" value={childForm.age} onChange={(event) => setChildForm({ ...childForm, age: event.target.value })} className="px-3 py-2 bg-surfaceLight border border-border rounded-lg text-text-primary" placeholder="Age" />
                 <input value={childForm.deviceLabel} onChange={(event) => setChildForm({ ...childForm, deviceLabel: event.target.value })} className="px-3 py-2 bg-surfaceLight border border-border rounded-lg text-text-primary" placeholder="Device label" />
@@ -1776,7 +1829,7 @@ const FamilyDashboard = () => {
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
-              className="glass rounded-2xl p-4 border border-border/80 xl:col-span-3 xl:order-7"
+              className="glass rounded-xl p-6 border-glow xl:col-span-4 xl:order-7"
             >
               <h3 className="text-lg font-bold text-text-primary mb-3 flex items-center gap-2">
                 <Watch className="text-primary" size={20} />
@@ -1810,7 +1863,7 @@ const FamilyDashboard = () => {
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
-                className="xl:col-span-3 xl:order-8"
+                className="xl:col-span-4 xl:order-8"
               >
                 <GeofencePanel
                   geofences={geofences}
@@ -1825,7 +1878,7 @@ const FamilyDashboard = () => {
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
-              className="glass rounded-2xl p-4 border border-border/80 xl:col-span-5 xl:order-9"
+              className="glass rounded-xl p-6 border-glow xl:col-span-4 xl:order-9"
             >
               <h3 className="text-sm font-bold text-text-secondary mb-3 flex items-center gap-2">
                 <AlertTriangle className="text-warning" size={20} />
@@ -1860,8 +1913,6 @@ const FamilyDashboard = () => {
               </div>
             </motion.div>
           )}
-
-        </div>
       </div>
       </>
       )}
