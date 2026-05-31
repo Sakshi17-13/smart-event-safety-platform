@@ -144,7 +144,7 @@ const LiveActivityFeed = ({ title = 'Live Activity', limit = 7, compact = false,
           Live
         </span>
       </div>
-      <div className={`relative space-y-2 ${compact ? 'max-h-60' : 'max-h-80'} overflow-y-auto pr-1`}>
+      <div className={`relative space-y-2 ${compact ? 'max-h-48' : 'max-h-80'} overflow-y-auto pr-1`}>
         {items.length > 1 && <div className="absolute left-[22px] top-2 bottom-2 w-px bg-gradient-to-b from-primary/50 via-accent/25 to-transparent" />}
         <AnimatePresence initial={false}>
           {items.map((item) => {

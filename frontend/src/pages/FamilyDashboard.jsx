@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import { familyAPI } from '../api'
 import { GUARDIAN, SAFE_RADIUS_METERS, SIMULATION_MODE } from '../services/realtimeSimulation'
 import LiveActivityFeed from '../components/LiveActivityFeed'
+import AnimatedNumber from '../components/AnimatedNumber'
 import { MapContainer, TileLayer, Marker, Popup, Circle, Polyline } from 'react-leaflet'
 import { DivIcon } from 'leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -28,6 +29,9 @@ import {
   Battery,
   Signal,
   Radio,
+  QrCode,
+  Smartphone,
+  Wifi,
   Plus,
   Edit3,
   Trash2,
@@ -255,6 +259,38 @@ const SOSButton = ({ onPress, isActive }) => (
     <Zap size={32} className="text-white" />
   </motion.button>
 )
+
+const BatteryMeter = ({ value }) => {
+  const level = Math.max(0, Math.min(100, Number(value) || 0))
+  const tone = level > 60 ? 'bg-success' : level > 25 ? 'bg-warning' : 'bg-danger'
+
+  return (
+    <div className="flex items-center gap-2">
+      <Battery size={14} className="text-text-muted" />
+      <div className="h-2 w-14 rounded-full bg-background border border-border overflow-hidden">
+        <div className={`h-full ${tone}`} style={{ width: `${level}%` }} />
+      </div>
+      <span>{Number.isFinite(Number(value)) ? `${Math.round(level)}%` : '-%'}</span>
+    </div>
+  )
+}
+
+const SignalBars = ({ status }) => {
+  const normalized = String(status || '').toLowerCase()
+  const bars = normalized.includes('strong') || normalized.includes('live') || normalized.includes('connected') ? 4 : normalized.includes('weak') ? 2 : normalized.includes('offline') ? 1 : 3
+
+  return (
+    <div className="flex items-end gap-0.5 h-4">
+      {[1, 2, 3, 4].map((bar) => (
+        <span
+          key={bar}
+          className={`w-1 rounded-full ${bar <= bars ? 'bg-primary' : 'bg-border'}`}
+          style={{ height: `${bar * 3 + 3}px` }}
+        />
+      ))}
+    </div>
+  )
+}
 
 const metersBetween = (a, b) => {
   const R = 6371000
@@ -1353,7 +1389,7 @@ const FamilyDashboard = () => {
             </span>
           </div>
           <p className="text-text-muted text-sm mb-1">Family Members</p>
-          <p className="text-3xl font-bold text-text-primary">{displayChildren.length}</p>
+          <p className="text-3xl font-bold text-text-primary"><AnimatedNumber value={displayChildren.length} /></p>
         </motion.div>
         <motion.div layout className="glass rounded-xl p-6 border-glow">
           <div className="flex items-center justify-between mb-4">
@@ -1363,7 +1399,7 @@ const FamilyDashboard = () => {
             <span className="text-xs px-2 py-1 rounded bg-success/20 text-success">Safe</span>
           </div>
           <p className="text-text-muted text-sm mb-1">Safe Members</p>
-          <p className="text-3xl font-bold text-text-primary">{safeCount}</p>
+          <p className="text-3xl font-bold text-text-primary"><AnimatedNumber value={safeCount} /></p>
         </motion.div>
         <motion.div layout className="glass rounded-xl p-6 border-glow">
           <div className="flex items-center justify-between mb-4">
@@ -1373,7 +1409,7 @@ const FamilyDashboard = () => {
             <span className="text-xs px-2 py-1 rounded bg-warning/20 text-warning">{warningCount + breachCount} active</span>
           </div>
           <p className="text-text-muted text-sm mb-1">Alerts</p>
-          <p className="text-3xl font-bold text-text-primary">{warningCount + breachCount}</p>
+          <p className="text-3xl font-bold text-text-primary"><AnimatedNumber value={warningCount + breachCount} /></p>
         </motion.div>
         <motion.div layout className="glass rounded-xl p-6 border-glow">
           <div className="flex items-center justify-between mb-4">
@@ -1383,7 +1419,7 @@ const FamilyDashboard = () => {
             <span className="text-xs px-2 py-1 rounded bg-primary/20 text-primary">Streaming</span>
           </div>
           <p className="text-text-muted text-sm mb-1">Tracking Streams</p>
-          <p className="text-3xl font-bold text-text-primary">{liveTrackedCount}</p>
+          <p className="text-3xl font-bold text-text-primary"><AnimatedNumber value={liveTrackedCount} /></p>
         </motion.div>
       </div>
 
@@ -1573,10 +1609,10 @@ const FamilyDashboard = () => {
 
         <div className="grid grid-cols-1 gap-6">
           <div>
-            <LiveActivityFeed title="Family Realtime Timeline" limit={6} compact includeEvent={includeFamilyTimelineEvent} starterEvents={starterTimelineEvents} />
+            <LiveActivityFeed title="Family Realtime Timeline" limit={4} compact includeEvent={includeFamilyTimelineEvent} starterEvents={starterTimelineEvents} />
           </div>
           <div>
-            <LiveActivityFeed title="Realtime Alerts" limit={5} compact includeEvent={includeFamilyTimelineEvent} starterEvents={starterTimelineEvents} />
+            <LiveActivityFeed title="Realtime Alerts" limit={4} compact includeEvent={includeFamilyTimelineEvent} starterEvents={starterTimelineEvents} />
           </div>
         </div>
       </div>
@@ -1588,23 +1624,40 @@ const FamilyDashboard = () => {
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
-              className="glass rounded-xl p-6 border-glow xl:col-span-4 xl:order-6"
+              className="glass rounded-xl p-5 border-glow xl:col-span-4 xl:order-6"
             >
-              <div className="flex items-start justify-between gap-3 mb-3">
-                <h3 className="text-sm font-bold text-text-secondary flex items-center gap-2">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h3 className="text-sm font-bold text-text-secondary flex items-center gap-2">
                   <Shield className="text-primary" size={20} />
                   Family Code
-                </h3>
+                  </h3>
+                  <p className="text-2xl font-bold text-primary tracking-widest mt-3">{activeFamilyGroup.code}</p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-success/10 px-2 py-1 text-xs font-semibold text-success">
+                      <span className="h-1.5 w-1.5 rounded-full bg-success animate-pulse" />
+                      Session active
+                    </span>
+                    <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-xs font-semibold ${pairing && !pairing.expired ? 'bg-primary/10 text-primary' : 'bg-warning/10 text-warning'}`}>
+                      <Watch size={12} />
+                      {pairing && !pairing.expired ? 'Pairing open' : 'Pairing standby'}
+                    </span>
+                  </div>
+                </div>
+                <div className="shrink-0 rounded-xl border border-primary/25 bg-background/70 p-2 shadow-[0_0_20px_rgba(59,130,246,0.12)]">
+                  <QrCode size={54} className="text-primary" />
+                </div>
+              </div>
+              <div className="mt-4 flex items-center justify-between gap-3 border-t border-border pt-3">
+                <p className="text-xs text-text-muted">Use with a fresh pair code on the wearable pairing page.</p>
                 <button
                   onClick={deleteFamilyGroup}
                   disabled={isDeletingFamilyGroup}
                   className="px-3 py-2 rounded-lg bg-danger/10 text-danger hover:bg-danger/20 disabled:opacity-60 text-xs font-medium transition-colors"
                 >
-                  {isDeletingFamilyGroup ? 'Deleting...' : 'Delete Group'}
+                  {isDeletingFamilyGroup ? 'Deleting...' : 'Delete'}
                 </button>
               </div>
-              <p className="text-2xl font-bold text-primary tracking-widest">{activeFamilyGroup.code}</p>
-              <p className="text-xs text-text-muted mt-2">Use with a fresh pair code on the wearable pairing page.</p>
             </motion.div>
           )}
 
@@ -1614,10 +1667,37 @@ const FamilyDashboard = () => {
               animate={{ opacity: 1, x: 0 }}
               className="glass rounded-xl p-6 border-glow space-y-3 xl:col-span-4 xl:order-5"
             >
-              <h3 className="text-sm font-bold text-text-secondary flex items-center gap-2">
-                <Shield className="text-primary" size={20} />
-                Geofence Engine
-              </h3>
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="text-sm font-bold text-text-secondary flex items-center gap-2">
+                  <Shield className="text-primary" size={20} />
+                  Geofence Engine
+                </h3>
+                <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-xs font-semibold ${
+                  breachCount > 0 ? 'bg-danger/10 text-danger' : warningCount > 0 ? 'bg-warning/10 text-warning' : 'bg-success/10 text-success'
+                }`}>
+                  <span className={`h-1.5 w-1.5 rounded-full ${breachCount > 0 ? 'bg-danger' : warningCount > 0 ? 'bg-warning' : 'bg-success'} animate-pulse`} />
+                  {breachCount > 0 ? 'Breach' : warningCount > 0 ? 'Watching' : 'Secure'}
+                </span>
+              </div>
+              <div className="relative mx-auto my-2 h-36 w-36 rounded-full border border-primary/20 bg-primary/5 overflow-hidden">
+                <motion.div
+                  className="absolute inset-3 rounded-full border border-success/30"
+                  animate={{ scale: [0.92, 1.04, 0.92], opacity: [0.45, 0.95, 0.45] }}
+                  transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+                />
+                <motion.div
+                  className="absolute inset-8 rounded-full border border-warning/35"
+                  animate={{ scale: [1.08, 0.96, 1.08], opacity: [0.35, 0.8, 0.35] }}
+                  transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
+                />
+                <motion.div
+                  className="absolute left-1/2 top-1/2 h-1 w-16 origin-left rounded-full bg-gradient-to-r from-primary to-transparent"
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 4, repeat: Infinity, ease: 'linear' }}
+                />
+                <div className="absolute left-1/2 top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary shadow-[0_0_18px_rgba(59,130,246,0.7)]" />
+                <div className="absolute inset-0 bg-[radial-gradient(circle,transparent_38%,rgba(59,130,246,0.12)_39%,transparent_40%)]" />
+              </div>
               <form onSubmit={saveGeofenceSettings} className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="block text-xs text-text-muted mb-1">Warning radius</label>
@@ -1672,10 +1752,16 @@ const FamilyDashboard = () => {
                   return (
                     <div key={device.deviceId || device.childMemberId} className={`p-3 rounded-xl bg-surfaceLight/70 border transition-all ${device.state.panel}`}>
                       <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="font-semibold text-text-primary">{device.label || device.deviceId}</p>
-                          <p className="text-xs text-text-muted mt-1 capitalize">{device.deviceType || 'device'} assigned to {device.childName}</p>
-                          <p className="text-xs text-text-muted mt-1">ID: {device.deviceId || 'Awaiting pairing'}</p>
+                        <div className="flex min-w-0 gap-3">
+                          <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-primary/25 bg-primary/10">
+                            {String(device.deviceType || '').toLowerCase().includes('phone') ? <Smartphone size={18} className="text-primary" /> : <Watch size={18} className="text-primary" />}
+                            <span className={`absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full ${device.state.dot} shadow-[0_0_12px_currentColor]`} />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-semibold text-text-primary">{device.label || device.deviceId}</p>
+                            <p className="text-xs text-text-muted mt-1 capitalize">{device.deviceType || 'device'} assigned to {device.childName}</p>
+                            <p className="text-xs text-text-muted mt-1">ID: {device.deviceId || 'Awaiting pairing'}</p>
+                          </div>
                         </div>
                         <span className={`text-xs px-2 py-1 rounded border flex items-center gap-1.5 ${device.state.badge}`}>
                           <span className={`w-1.5 h-1.5 rounded-full ${device.state.dot}`} />
@@ -1684,15 +1770,14 @@ const FamilyDashboard = () => {
                       </div>
                       <div className="grid grid-cols-3 gap-2 mt-3 text-xs">
                         <div className="flex items-center gap-1 text-text-secondary">
-                          <Battery size={13} />
-                          <span>{device.batteryLevel ?? '-'}%</span>
+                          <BatteryMeter value={device.batteryLevel} />
                         </div>
                         <div className="flex items-center gap-1 text-text-secondary">
-                          <Signal size={13} />
+                          <SignalBars status={device.signalStatus || device.state.label} />
                           <span className="capitalize">{device.signalStatus || 'standby'}</span>
                         </div>
                         <div className="flex items-center gap-1 text-text-secondary">
-                          <Clock size={13} />
+                          <Wifi size={13} className={device.state.key === 'offline' ? 'text-danger' : 'text-success'} />
                           <span>{formatRelativeTime(device.lastSeenAt, '-')}</span>
                         </div>
                       </div>
