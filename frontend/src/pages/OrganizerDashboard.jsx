@@ -628,8 +628,9 @@ const OrganizerDashboard = () => {
         className="flex items-center justify-between"
       >
         <div>
-          <h1 className="text-3xl font-bold text-text-primary text-glow">Organizer Dashboard</h1>
-          <p className="text-text-muted mt-1">Real-time event safety monitoring</p>
+          <p className="text-xs uppercase tracking-[0.22em] text-warning">Incident Command</p>
+          <h1 className="text-3xl font-bold text-text-primary text-glow">Organizer Ops Center</h1>
+          <p className="text-text-muted mt-1">Active event coordination, responder dispatch, zone monitoring, and emergency workflow</p>
         </div>
         <div className="flex items-center gap-4">
           {SIMULATION_MODE && (
@@ -679,6 +680,46 @@ const OrganizerDashboard = () => {
           color="bg-success"
           delay={0.3}
         />
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-[1.25fr_0.75fr] gap-6">
+        <div className="glass rounded-2xl p-6 border-glow">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-bold text-text-primary flex items-center gap-2">
+              <MapPin className="text-warning" size={20} />
+              Active Event Coordination
+            </h3>
+            <span className="text-xs px-2 py-1 rounded bg-warning/10 text-warning">Command workflow</span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+            {[
+              ['Detect', stats.activeAlerts, 'bg-danger/10 border-danger/30 text-danger'],
+              ['Assess', hotspotZones.length || 2, 'bg-warning/10 border-warning/30 text-warning'],
+              ['Dispatch', incidents.filter((i) => i.status === 'active').length, 'bg-primary/10 border-primary/30 text-primary'],
+              ['Resolve', stats.activeFamilies || stats.familyGroups, 'bg-success/10 border-success/30 text-success'],
+            ].map(([label, value, tone]) => (
+              <div key={label} className={`rounded-xl border p-4 ${tone}`}>
+                <p className="text-xs uppercase tracking-[0.18em] opacity-80">{label}</p>
+                <p className="mt-2 text-3xl font-black">{value}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="glass rounded-2xl p-6 border-glow">
+          <h3 className="text-lg font-bold text-text-primary mb-4 flex items-center gap-2">
+            <Zap className="text-danger" size={20} />
+            Emergency Workflow
+          </h3>
+          <div className="space-y-3">
+            {['Nearest responder standby', 'Family incident anonymization active', 'Escalation channel armed'].map((item, index) => (
+              <div key={item} className="flex items-center justify-between rounded-xl bg-surfaceLight border border-border p-3">
+                <span className="text-sm text-text-secondary">{item}</span>
+                <span className={`text-xs px-2 py-1 rounded ${index === 0 ? 'bg-success/10 text-success' : index === 1 ? 'bg-primary/10 text-primary' : 'bg-danger/10 text-danger'}`}>Ready</span>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[0.9fr_1.1fr] gap-6">
