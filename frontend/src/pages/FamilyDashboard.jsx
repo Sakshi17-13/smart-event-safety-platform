@@ -68,7 +68,21 @@ const formatRelativeTime = (timestamp, fallback = 'Not Connected') => {
   return `${Math.floor(ageSeconds / 60)} min ago`
 }
 
-const ChildCard = ({ child, onSelect, onSOS, distance }) => (
+const hasActiveTrackingLocation = (child) =>
+  Boolean(
+    child?.isPaired &&
+    child?.position?.every(Number.isFinite) &&
+    !child?.trackingPaused &&
+    child?.trackingState !== 'outside_event_zone'
+  )
+
+const formatTrackingDistance = (child) => {
+  if (!hasActiveTrackingLocation(child)) return 'Location unavailable'
+  if (Number.isFinite(child.distanceMeters)) return `${Math.round(child.distanceMeters)}m away`
+  return 'Awaiting live location'
+}
+
+const ChildCard = ({ child, onSelect, onSOS }) => (
   <motion.div
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
@@ -148,7 +162,7 @@ const ChildCard = ({ child, onSelect, onSOS, distance }) => (
       <div className="grid grid-cols-2 gap-2 mb-3">
         <div className="flex items-center gap-2 rounded-lg bg-surfaceLight/70 px-2 py-2 text-sm text-text-secondary">
           <MapPin size={14} />
-          <span>{child.distanceMeters ? `${Math.round(child.distanceMeters)}m` : `${distance} km`} away</span>
+          <span>{formatTrackingDistance(child)}</span>
         </div>
         <div className="flex items-center gap-2 rounded-lg bg-surfaceLight/70 px-2 py-2 text-sm text-text-secondary">
           <Clock size={14} />
@@ -167,7 +181,7 @@ const ChildCard = ({ child, onSelect, onSOS, distance }) => (
 
     {child.isPaired && !child.position && (
       <div className="mb-3 px-3 py-2 rounded-lg border border-primary/30 bg-primary/10 text-primary text-sm">
-        Waiting for live device connection
+        Awaiting live location
       </div>
     )}
 
@@ -568,7 +582,11 @@ const FamilyDashboard = () => {
       trackingPaused: Boolean(child.trackingPaused || child.sessionStatus === 'inactive'),
       privacyBoundary: child.privacyBoundary,
       sessionStatus: child.sessionStatus,
-      distanceMeters: isPaired ? child.distanceMeters : null,
+      distanceMeters: isPaired && Number.isFinite(child.distanceMeters)
+        ? child.distanceMeters
+        : isPaired && Number.isFinite(child.privacyBoundary?.distanceMeters)
+          ? child.privacyBoundary.distanceMeters
+          : null,
       zone: isPaired ? child.zone : undefined,
       groupId: group?._id || group?.familyGroupId,
     }
@@ -1390,17 +1408,6 @@ const FamilyDashboard = () => {
     return () => clearTimeout(pairingExpiryTimerRef.current)
   }, [pairing?.pairingCode, pairing?.expiresAt])
 
-  const calculateDistance = (pos1, pos2) => {
-    const R = 6371 // Earth's radius in km
-    const dLat = (pos2[0] - pos1[0]) * Math.PI / 180
-    const dLon = (pos2[1] - pos1[1]) * Math.PI / 180
-    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-              Math.cos(pos1[0] * Math.PI / 180) * Math.cos(pos2[0] * Math.PI / 180) *
-              Math.sin(dLon/2) * Math.sin(dLon/2)
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
-    return (R * c).toFixed(2)
-  }
-
   return (
     <div className="space-y-4 sm:space-y-6">
       {/* Header */}
@@ -1671,7 +1678,7 @@ const FamilyDashboard = () => {
                       <br />
                       Last seen: {child.lastSeen}
                       <br />
-                      Distance: {child.distanceMeters ? `${Math.round(child.distanceMeters)}m` : 'Calculating'}
+                      Distance: {formatTrackingDistance(child)}
                       <br />
                       Zone: {child.zone || 'Unknown'}
                     </div>
@@ -1961,7 +1968,6 @@ const FamilyDashboard = () => {
                     child={{ ...child, selected: selectedChild?.id === child.id }}
                     onSelect={setSelectedChild}
                     onSOS={handleSOS}
-                    distance={child.position ? calculateDistance(mapCenter, child.position) : null}
                   />
                   <div className="grid grid-cols-3 gap-2">
                     <button
