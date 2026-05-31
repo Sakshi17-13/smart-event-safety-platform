@@ -1,11 +1,15 @@
 import { useState } from 'react'
-import { Outlet } from 'react-router-dom'
+import { AnimatePresence, motion } from 'framer-motion'
+import { useLocation, useOutlet } from 'react-router-dom'
 import Sidebar from '../components/Sidebar'
 import Navbar from '../components/Navbar'
 import RealtimeToasts from '../components/RealtimeToasts'
+import { pageTransition } from '../motion/presets'
 
 const DashboardLayout = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const location = useLocation()
+  const outlet = useOutlet()
 
   const toggleSidebar = () => setSidebarCollapsed(!sidebarCollapsed)
 
@@ -19,7 +23,18 @@ const DashboardLayout = () => {
       >
         <Navbar toggleSidebar={toggleSidebar} />
         <main className="pt-20 p-6">
-          <Outlet />
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={location.pathname}
+              variants={pageTransition}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              className="min-h-[calc(100vh-5rem)]"
+            >
+              {outlet}
+            </motion.div>
+          </AnimatePresence>
         </main>
       </div>
       <RealtimeToasts />

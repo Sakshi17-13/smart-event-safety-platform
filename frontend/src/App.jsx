@@ -16,6 +16,7 @@ import Monitoring from './pages/Monitoring'
 import Security from './pages/Security'
 import Settings from './pages/Settings'
 import DevicePairing from './pages/DevicePairing'
+import MotionPage from './motion/MotionPage'
 
 function App() {
   return (
@@ -28,7 +29,7 @@ function App() {
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Signup />} />
             </Route>
-            <Route path="/device-pairing" element={<DevicePairing />} />
+            <Route path="/device-pairing" element={<MotionPage className="min-h-screen"><DevicePairing /></MotionPage>} />
 
             {/* Protected Routes */}
             <Route

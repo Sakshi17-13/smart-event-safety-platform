@@ -1,5 +1,7 @@
+import { motion } from 'framer-motion'
 import { Bell, Search, Menu, LogOut } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import { glowPulse, realtimeBreathing, scaleHover } from '../motion/presets'
 
 const Navbar = ({ toggleSidebar }) => {
   const { user, logout } = useAuth()
@@ -31,10 +33,16 @@ const Navbar = ({ toggleSidebar }) => {
         {/* Right side */}
         <div className="flex items-center gap-4">
           {/* Notifications */}
-          <button className="relative p-2 rounded-lg hover:bg-surfaceLight text-text-secondary hover:text-primary transition-colors">
+          <motion.button
+            className="relative p-2 rounded-lg hover:bg-surfaceLight text-text-secondary hover:text-primary transition-colors"
+            {...scaleHover}
+          >
             <Bell size={20} />
-            <span className="absolute top-1 right-1 w-2 h-2 bg-danger rounded-full animate-pulse"></span>
-          </button>
+            <motion.span
+              className="absolute top-1 right-1 w-2 h-2 bg-danger rounded-full"
+              {...realtimeBreathing}
+            />
+          </motion.button>
 
           {/* User menu */}
           <div className="flex items-center gap-3 pl-4 border-l border-border">
@@ -42,16 +50,20 @@ const Navbar = ({ toggleSidebar }) => {
               <p className="text-sm font-medium text-text-primary">{displayName}</p>
               <p className="text-xs text-text-muted">{user?.role || 'FAMILY'}</p>
             </div>
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white font-bold">
+            <motion.div
+              className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white font-bold"
+              {...glowPulse}
+            >
               {user?.firstName?.charAt(0) || 'U'}
-            </div>
-            <button
+            </motion.div>
+            <motion.button
               onClick={logout}
               className="p-2 rounded-lg hover:bg-surfaceLight text-text-secondary hover:text-danger transition-colors"
               title="Logout"
+              {...scaleHover}
             >
               <LogOut size={20} />
-            </button>
+            </motion.button>
           </div>
         </div>
       </div>

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Activity, AlertTriangle, Radio, Shield, Users, Watch, Zap } from 'lucide-react'
 import { useSocket } from '../context/SocketContext'
+import { realtimeBreathing } from '../motion/presets'
 
 const eventMeta = {
   EVENT_CREATED: { label: 'Event created', icon: Shield, color: 'text-primary' },
@@ -139,7 +140,7 @@ const LiveActivityFeed = ({ title = 'Live Activity', limit = 7, compact = false,
           {title}
         </h3>
         <span className="text-xs px-2 py-1 rounded bg-success/10 text-success flex items-center gap-1">
-          <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
+          <motion.span className="w-1.5 h-1.5 rounded-full bg-success" {...realtimeBreathing} />
           Live
         </span>
       </div>

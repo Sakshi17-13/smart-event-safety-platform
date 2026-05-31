@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { motion } from 'framer-motion'
 import { Link, useLocation } from 'react-router-dom'
 import { cn } from '../utils/cn'
+import { glowPulse, scaleHover } from '../motion/presets'
 import {
   LayoutDashboard,
   AlertTriangle,
@@ -28,6 +29,8 @@ const menuItems = [
   { icon: Shield, label: 'Security', path: '/security' },
   { icon: Settings, label: 'Settings', path: '/settings' },
 ]
+
+const MotionLink = motion(Link)
 
 const Sidebar = ({ collapsed, setCollapsed }) => {
   const location = useLocation()
@@ -64,7 +67,7 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
           const isActive = location.pathname === item.path
 
           return (
-            <Link
+            <MotionLink
               key={item.path}
               to={item.path}
               className={cn(
@@ -73,10 +76,12 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
                   ? 'bg-primary/20 text-primary border-glow'
                   : 'text-text-secondary hover:bg-surfaceLight hover:text-primary'
               )}
+              {...scaleHover}
+              {...(isActive ? glowPulse : {})}
             >
               <Icon size={20} />
               {!collapsed && <span>{item.label}</span>}
-            </Link>
+            </MotionLink>
           )
         })}
       </nav>
