@@ -424,10 +424,11 @@ const OrganizerDashboard = () => {
   const applySnapshot = async () => {
     try {
       const state = demoStore.getState()
+      const requestTimestamp = Date.now()
       const [alertResponse, eventResponse, eventStatsResponse] = await Promise.all([
         alertsAPI.getAll(),
-        eventsAPI.getAll(),
-        eventsAPI.getStats(),
+        eventsAPI.getAll({ _ts: requestTimestamp }),
+        eventsAPI.getStats({ _ts: requestTimestamp }),
       ])
       const events = eventResponse.data.data || []
       setOrganizerEvents(events)
@@ -435,21 +436,31 @@ const OrganizerDashboard = () => {
       const nextAlerts = (alertResponse.data.data || [])
         .filter(isOrganizerVisibleAlert)
         .map((alert) => toOrganizerAlert(alert, events))
-      const activeEventId = events.find((event) => event.status === 'active')?._id
+      const activeEventId = events.find((event) => ['active', 'ongoing', 'published'].includes(event.status))?._id || events[0]?._id
       const response = await familyAPI.getOrganizerFamilySummary(activeEventId)
+      const familyData = response.data.data || {}
+      const familyGroups = Array.isArray(familyData) ? familyData : familyData.groups || []
+      const familyMetrics = Array.isArray(familyData) ? null : familyData.metrics
       setFamilySummary(
-        (response.data.data || []).map((group) => ({
+        familyGroups.map((group) => ({
           ...group,
           label: anonymizedFamilyLabel(group.groupId),
         }))
       )
       setAlerts(nextAlerts)
-      setStats({
-        ...demoStore.getStats(),
+      setStats((currentStats) => ({
+        ...currentStats,
         activeEvents: eventStats.active || 0,
         totalEvents: eventStats.total || 0,
         eventCapacity: eventStats.capacity || 0,
-      })
+        activeAlerts: nextAlerts.filter((alert) => alert.status !== 'resolved').length,
+        totalAlerts: nextAlerts.length,
+        familyGroups: familyMetrics?.familyCount ?? familyGroups.length,
+        activeFamilies: familyMetrics?.activeFamilies ?? familyGroups.length,
+        linkedDevices: familyMetrics?.linkedDevices ?? familyGroups.reduce((total, group) => total + Number(group.linkedDevices || 0), 0),
+        totalUsers: familyMetrics?.memberCount ?? familyGroups.reduce((total, group) => total + Number(group.memberCount || 0), 0),
+        totalAttendees: eventStats.totalAttendees || familyMetrics?.attendeeCount || 0,
+      }))
       setIncidents(
         nextAlerts
           .filter((alert) => alert.status !== 'resolved')
@@ -553,8 +564,11 @@ const OrganizerDashboard = () => {
     on('FAMILY_GROUP_CREATED', applySnapshot)
     on('FAMILY_GROUP_DELETED', applySnapshot)
     on('FAMILY_REGISTERED', applySnapshot)
+    on('FAMILY_JOINED_EVENT', applySnapshot)
+    on('FAMILY_CREATED', applySnapshot)
     on('ORGANIZER_FAMILY_REGISTERED', applySnapshot)
     on('FAMILY_MEMBER_ADDED', applySnapshot)
+    on('MEMBER_ADDED', applySnapshot)
     on('FAMILY_MEMBER_REMOVED', applySnapshot)
     on('FAMILY_GUARDIAN_REMOVED', applySnapshot)
     on('DEVICE_PAIRED', applySnapshot)
@@ -580,8 +594,11 @@ const OrganizerDashboard = () => {
       off('FAMILY_GROUP_CREATED', applySnapshot)
       off('FAMILY_GROUP_DELETED', applySnapshot)
       off('FAMILY_REGISTERED', applySnapshot)
+      off('FAMILY_JOINED_EVENT', applySnapshot)
+      off('FAMILY_CREATED', applySnapshot)
       off('ORGANIZER_FAMILY_REGISTERED', applySnapshot)
       off('FAMILY_MEMBER_ADDED', applySnapshot)
+      off('MEMBER_ADDED', applySnapshot)
       off('FAMILY_MEMBER_REMOVED', applySnapshot)
       off('FAMILY_GUARDIAN_REMOVED', applySnapshot)
       off('DEVICE_PAIRED', applySnapshot)

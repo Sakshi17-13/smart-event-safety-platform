@@ -71,5 +71,5 @@ export const eventsAPI = {
   update: (id, data) => api.put(`/events/${id}`, buildEventPayload(data)).then(normalizeResponseData),
   delete: (id) => api.delete(`/events/${id}`),
   register: (id) => api.post(`/events/${id}/register`).then(normalizeResponseData),
-  getStats: () => api.get('/events/stats'),
+  getStats: (params) => api.get('/events/stats', { params }),
 }

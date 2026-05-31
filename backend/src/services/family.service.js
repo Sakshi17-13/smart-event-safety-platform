@@ -13,6 +13,78 @@ const buildLeaderGuardian = (userId, data = {}) => ({
 });
 
 class FamilyService {
+  buildEventSummary(event) {
+    if (!event) return null;
+    return {
+      _id: event._id,
+      name: event.name,
+      description: event.description,
+      status: event.status,
+      category: event.category,
+      venue: event.venue,
+      schedule: event.schedule,
+      statistics: event.statistics,
+      location: event.venue?.name,
+      capacity: event.venue?.capacity,
+      date: event.schedule?.startDate,
+      attendees: event.statistics?.totalAttendees || event.attendees?.length || 0,
+      checkedIn: event.statistics?.checkedIn || 0,
+    };
+  }
+
+  async getFamilyMetrics(eventId, event = null) {
+    if (!eventId) {
+      return {
+        eventId: undefined,
+        familyCount: 0,
+        activeFamilies: 0,
+        memberCount: 0,
+        linkedDevices: 0,
+        attendeeCount: 0,
+        eventSummary: null,
+      };
+    }
+
+    const [groups, eventDoc] = await Promise.all([
+      FamilyGroup.find({ event: eventId, status: 'active' }).select('members guardians childMembers event status'),
+      event || Event.findById(eventId),
+    ]);
+
+    const memberCount = groups.reduce((total, group) => (
+      total + group.members.length + group.guardians.length + group.childMembers.length
+    ), 0);
+    const linkedDevices = groups.reduce((total, group) => (
+      total + group.childMembers.filter((child) => child.deviceStatus === 'paired' || child.connected || child.paired).length
+    ), 0);
+
+    return {
+      eventId: String(eventId),
+      familyCount: groups.length,
+      activeFamilies: groups.length,
+      memberCount,
+      linkedDevices,
+      attendeeCount: eventDoc?.statistics?.totalAttendees || eventDoc?.attendees?.length || 0,
+      eventSummary: this.buildEventSummary(eventDoc),
+    };
+  }
+
+  async ensureFamilyEventRegistration(userId, eventId, group, event = null) {
+    const eventDoc = event || await Event.findById(eventId);
+    if (!eventDoc) throw new AppError('Event not found', 404);
+
+    const attendee = eventDoc.attendees.find((item) => item.user.toString() === userId.toString());
+    if (!attendee) {
+      eventDoc.addAttendee(userId);
+      const added = eventDoc.attendees.find((item) => item.user.toString() === userId.toString());
+      if (added) added.familyGroupId = group._id;
+    } else if (!attendee.familyGroupId) {
+      attendee.familyGroupId = group._id;
+    }
+
+    await eventDoc.save();
+    return eventDoc;
+  }
+
   async browseNearbyEvents(filters = {}) {
     const query = {
       status: { $in: ['published', 'active', 'ongoing'] },
@@ -61,21 +133,9 @@ class FamilyService {
       });
     }
 
-    const alreadyRegistered = event.attendees.some((attendee) => attendee.user.toString() === userId.toString());
-    if (!alreadyRegistered) {
-      event.addAttendee(userId);
-      const attendee = event.attendees.find((item) => item.user.toString() === userId.toString());
-      if (attendee) {
-        attendee.familyGroupId = group._id;
-      }
-      await event.save();
-    } else {
-      const attendee = event.attendees.find((item) => item.user.toString() === userId.toString());
-      if (attendee && !attendee.familyGroupId) {
-        attendee.familyGroupId = group._id;
-        await event.save();
-      }
-    }
+    await this.ensureFamilyEventRegistration(userId, eventId, group, event);
+
+    const metrics = await this.getFamilyMetrics(eventId, event);
 
     return {
       _id: group._id,
@@ -83,25 +143,16 @@ class FamilyService {
       name: group.name,
       event: group.event,
       eventName: event.name,
-      eventSummary: {
-        _id: event._id,
-        name: event.name,
-        description: event.description,
-        status: event.status,
-        category: event.category,
-        venue: event.venue,
-        schedule: event.schedule,
-        statistics: event.statistics,
-        location: event.venue?.name,
-        capacity: event.venue?.capacity,
-        date: event.schedule?.startDate,
-        attendees: event.statistics?.totalAttendees || event.attendees.length,
-        checkedIn: event.statistics?.checkedIn || 0,
-      },
+      eventSummary: metrics.eventSummary,
       leader: group.leader,
       members: group.members,
       childMembers: group.childMembers,
-      familyCount: await FamilyGroup.countDocuments({ event: eventId, status: 'active' }),
+      familyCount: metrics.familyCount,
+      activeFamilies: metrics.activeFamilies,
+      memberCount: metrics.memberCount,
+      linkedDevices: metrics.linkedDevices,
+      attendeeCount: metrics.attendeeCount,
+      metrics,
     };
   }
 
@@ -116,7 +167,15 @@ class FamilyService {
     }
 
     const existingGroup = await FamilyGroup.findOne(existingQuery);
-    if (existingGroup) return existingGroup;
+    if (existingGroup) {
+      if (data.eventId) await this.ensureFamilyEventRegistration(userId, data.eventId, existingGroup);
+      return existingGroup;
+    }
+
+    if (data.eventId) {
+      const event = await Event.findById(data.eventId);
+      if (!event) throw new AppError('Event not found', 404);
+    }
 
     const group = await FamilyGroup.create({
       name: data.name,
@@ -142,6 +201,8 @@ class FamilyService {
         : [buildLeaderGuardian(userId, data)],
       childMembers: data.childMembers || [],
     });
+
+    if (data.eventId) await this.ensureFamilyEventRegistration(userId, data.eventId, group);
 
     return group;
   }
@@ -496,15 +557,22 @@ class FamilyService {
   }
 
   async getOrganizerFamilySummary(eventId, emergency = false) {
-    const groups = await FamilyGroup.find({ event: eventId, status: 'active' });
-    return groups.map((group, index) => ({
-      groupId: group._id,
-      label: `Family Group ${index + 1}`,
-      memberCount: group.childMembers.length + group.members.length,
-      linkedDevices: group.childMembers.filter((child) => child.deviceStatus === 'paired').length,
-      geofenceBreaches: group.childMembers.filter((child) => child.geofenceStatus === 'outside').length,
-      members: emergency ? group.childMembers.map((child) => ({ name: child.name, status: child.deviceStatus })) : undefined,
-    }));
+    const [groups, metrics] = await Promise.all([
+      FamilyGroup.find({ event: eventId, status: 'active' }),
+      this.getFamilyMetrics(eventId),
+    ]);
+
+    return {
+      groups: groups.map((group, index) => ({
+        groupId: group._id,
+        label: `Family Group ${index + 1}`,
+        memberCount: group.childMembers.length + group.members.length + group.guardians.length,
+        linkedDevices: group.childMembers.filter((child) => child.deviceStatus === 'paired' || child.connected || child.paired).length,
+        geofenceBreaches: group.childMembers.filter((child) => child.geofenceStatus === 'outside').length,
+        members: emergency ? group.childMembers.map((child) => ({ name: child.name, status: child.deviceStatus })) : undefined,
+      })),
+      metrics,
+    };
   }
 }
 

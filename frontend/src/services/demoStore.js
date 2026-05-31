@@ -244,6 +244,7 @@ export const demoStore = {
       timestamp: nowIso(),
     }
     emitRealtime('FAMILY_REGISTERED', payload)
+    emitRealtime('FAMILY_JOINED_EVENT', payload)
     emitRealtime('ORGANIZER_FAMILY_REGISTERED', {
       ...payload,
       userId: undefined,
@@ -302,14 +303,16 @@ export const demoStore = {
     })
     const nextState = { ...state, familyGroups: [normalized, ...state.familyGroups] }
     this.save(nextState)
-    emitRealtime('FAMILY_GROUP_CREATED', {
+    const payload = {
       ...normalized,
       groupId: normalized._id,
       familyGroupId: normalized._id,
       eventId: normalized.event,
       familyCode: normalized.code,
       timestamp: nowIso(),
-    })
+    }
+    emitRealtime('FAMILY_GROUP_CREATED', payload)
+    emitRealtime('FAMILY_CREATED', payload)
     if (normalized.event) this.registerFamilyForEvent(normalized.event, normalized.leader, normalized._id)
     return normalized
   },
@@ -329,6 +332,7 @@ export const demoStore = {
     })
     this.save({ ...state, familyGroups })
     emitRealtime('FAMILY_MEMBER_ADDED', { groupId, member: added, memberType: 'guardian' })
+    emitRealtime('MEMBER_ADDED', { groupId, member: added, memberType: 'guardian' })
     return added
   },
 
@@ -404,6 +408,7 @@ export const demoStore = {
     })
     this.save({ ...state, familyGroups })
     emitRealtime('FAMILY_MEMBER_ADDED', { groupId, member: added })
+    emitRealtime('MEMBER_ADDED', { groupId, member: added })
     return added
   },
 

@@ -12,7 +12,10 @@ const eventMeta = {
   JOINED_FAMILY: { label: 'Family room connected', icon: Radio, color: 'text-success' },
   USER_JOINED_FAMILY: { label: 'Guardian connected', icon: Radio, color: 'text-success' },
   FAMILY_REGISTERED: { label: 'Family registered', icon: Users, color: 'text-success' },
+  FAMILY_JOINED_EVENT: { label: 'Family joined event', icon: Users, color: 'text-success' },
+  FAMILY_CREATED: { label: 'Family created', icon: Users, color: 'text-success' },
   FAMILY_MEMBER_ADDED: { label: 'Member added', icon: Users, color: 'text-primary' },
+  MEMBER_ADDED: { label: 'Member added', icon: Users, color: 'text-primary' },
   DEVICE_PAIRED: { label: 'Device paired', icon: Watch, color: 'text-success' },
   DEVICE_STATUS_UPDATED: { label: 'Device connected', icon: Radio, color: 'text-accent' },
   DEVICE_DISCONNECTED: { label: 'Device offline', icon: Radio, color: 'text-danger' },
@@ -49,8 +52,8 @@ const describePayload = (event, payload = {}) => {
       ? `Guardian radius active at ${payload.geofenceSettings.safeRadiusMeters || payload.safeRadiusMeters || 'live'}m`
       : 'Guardian radius and alert rules refreshed'
   }
-  if (event === 'FAMILY_REGISTERED') return `${payload.familyCount || 1} active family groups on event`
-  if (event === 'FAMILY_MEMBER_ADDED') return payload.member?.name ? `${payload.member.name} added to family roster` : 'Family roster updated'
+  if (event === 'FAMILY_REGISTERED' || event === 'FAMILY_JOINED_EVENT') return `${payload.familyCount || 1} active family groups on event`
+  if (event === 'FAMILY_MEMBER_ADDED' || event === 'MEMBER_ADDED') return payload.member?.name ? `${payload.member.name} added to family roster` : 'Family roster updated'
   if (event === 'DEVICE_PAIRED') return `${payload.deviceLabel || payload.deviceId || 'Device'} linked to ${payload.childName || 'member'}`
   if (event === 'GEOFENCE_WARNING' || event === 'GEOFENCE_BREACH') return `${Math.round(payload.distanceMeters || 0)}m from guardian zone`
   if (event === 'new-alert') return payload.description || payload.type || 'New incident alert'

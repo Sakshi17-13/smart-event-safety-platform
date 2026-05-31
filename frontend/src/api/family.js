@@ -114,6 +114,6 @@ export const familyAPI = {
     ),
   getOrganizerFamilySummary: (eventId, emergency = false) =>
     eventId
-      ? api.get(`/family/organizer/events/${eventId}/family-summary`, { params: { emergency } })
-      : Promise.resolve({ data: { success: true, message: 'No active event selected', data: [] } }),
+      ? api.get(`/family/organizer/events/${eventId}/family-summary`, { params: { emergency, _ts: Date.now() } })
+      : Promise.resolve({ data: { success: true, message: 'No active event selected', data: { groups: [], metrics: null } } }),
 }

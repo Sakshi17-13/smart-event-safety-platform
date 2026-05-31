@@ -81,14 +81,20 @@ export const SocketProvider = ({ children }) => {
     if (!isAuthenticated) return undefined
 
     const handleRegistration = () => syncRealtimeRooms()
+    const handleFamilyJoined = () => syncRealtimeRooms()
     const handleGroupCreated = () => syncRealtimeRooms()
+    const handleFamilyCreated = () => syncRealtimeRooms()
+    const handleMemberAdded = () => syncRealtimeRooms()
     const handleGroupDeleted = () => syncRealtimeRooms()
     const handleDevicePaired = () => syncRealtimeRooms()
     const handleMemberRemoved = () => syncRealtimeRooms()
 
     if (demoModeEnabled) {
       realtimeSimulation.on('FAMILY_REGISTERED', handleRegistration)
+      realtimeSimulation.on('FAMILY_JOINED_EVENT', handleFamilyJoined)
       realtimeSimulation.on('FAMILY_GROUP_CREATED', handleGroupCreated)
+      realtimeSimulation.on('FAMILY_CREATED', handleFamilyCreated)
+      realtimeSimulation.on('MEMBER_ADDED', handleMemberAdded)
       realtimeSimulation.on('FAMILY_GROUP_DELETED', handleGroupDeleted)
       realtimeSimulation.on('DEVICE_PAIRED', handleDevicePaired)
       realtimeSimulation.on('FAMILY_MEMBER_REMOVED', handleMemberRemoved)
@@ -97,7 +103,10 @@ export const SocketProvider = ({ children }) => {
     return () => {
       if (demoModeEnabled) {
         realtimeSimulation.off('FAMILY_REGISTERED', handleRegistration)
+        realtimeSimulation.off('FAMILY_JOINED_EVENT', handleFamilyJoined)
         realtimeSimulation.off('FAMILY_GROUP_CREATED', handleGroupCreated)
+        realtimeSimulation.off('FAMILY_CREATED', handleFamilyCreated)
+        realtimeSimulation.off('MEMBER_ADDED', handleMemberAdded)
         realtimeSimulation.off('FAMILY_GROUP_DELETED', handleGroupDeleted)
         realtimeSimulation.off('DEVICE_PAIRED', handleDevicePaired)
         realtimeSimulation.off('FAMILY_MEMBER_REMOVED', handleMemberRemoved)

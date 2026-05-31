@@ -24,12 +24,24 @@ class FamilyController {
         familyCode: group.code,
         familyGroupLabel: `Family ${String(group._id).slice(-4)}`,
         familyCount: group.familyCount,
+        activeFamilies: group.activeFamilies,
+        attendeeCount: group.attendeeCount,
+        memberCount: group.memberCount,
+        linkedDevices: group.linkedDevices,
+        metrics: group.metrics,
+        eventSummary: group.eventSummary,
         timestamp: new Date().toISOString(),
       };
 
       socketManager.sendToUser(req.user.userId, 'FAMILY_REGISTERED', payload);
+      socketManager.sendToUser(req.user.userId, 'FAMILY_JOINED_EVENT', payload);
       socketManager.broadcastToEvent(payload.eventId, 'FAMILY_REGISTERED', payload);
+      socketManager.broadcastToEvent(payload.eventId, 'FAMILY_JOINED_EVENT', payload);
       socketManager.broadcastToOrganizer(payload.eventId, 'ORGANIZER_FAMILY_REGISTERED', {
+        ...payload,
+        userId: undefined,
+      });
+      socketManager.broadcastToOrganizer(payload.eventId, 'FAMILY_JOINED_EVENT', {
         ...payload,
         userId: undefined,
       });
@@ -56,15 +68,37 @@ class FamilyController {
         eventId: group.event ? String(group.event) : undefined,
         timestamp: new Date().toISOString(),
       };
+      if (payload.eventId) {
+        const metrics = await familyService.getFamilyMetrics(payload.eventId);
+        payload.metrics = metrics;
+        payload.familyCount = metrics.familyCount;
+        payload.activeFamilies = metrics.activeFamilies;
+        payload.attendeeCount = metrics.attendeeCount;
+        payload.memberCount = metrics.memberCount;
+        payload.linkedDevices = metrics.linkedDevices;
+        payload.eventSummary = metrics.eventSummary;
+      }
       logger.info('Family group created', { groupId: group._id, userId: req.user.userId });
       socketManager.sendToUser(req.user.userId, 'FAMILY_GROUP_CREATED', payload);
+      socketManager.sendToUser(req.user.userId, 'FAMILY_CREATED', payload);
       if (group.event) {
         socketManager.broadcastToEvent(String(group.event), 'FAMILY_GROUP_CREATED', payload);
+        socketManager.broadcastToEvent(String(group.event), 'FAMILY_CREATED', payload);
         socketManager.broadcastToOrganizer(String(group.event), 'ORGANIZER_FAMILY_REGISTERED', {
           ...payload,
           userId: undefined,
           familyGroupLabel: `Family ${String(group._id).slice(-4)}`,
         });
+        socketManager.broadcastToOrganizer(String(group.event), 'FAMILY_CREATED', {
+          ...payload,
+          userId: undefined,
+          familyGroupLabel: `Family ${String(group._id).slice(-4)}`,
+        });
+        if (payload.eventSummary) {
+          socketManager.broadcastToEvent(payload.eventId, 'EVENT_UPDATED', payload.eventSummary);
+          socketManager.broadcastToOrganizer(payload.eventId, 'EVENT_UPDATED', payload.eventSummary);
+          socketManager.broadcastToEventDirectory('EVENT_UPDATED', payload.eventSummary);
+        }
       }
       res.status(201).json({ success: true, message: 'Family group created successfully', data: group });
     } catch (error) {
@@ -129,8 +163,22 @@ class FamilyController {
         eventId: group.event ? String(group.event) : undefined,
         timestamp: new Date().toISOString(),
       };
+      if (payload.eventId) {
+        const metrics = await familyService.getFamilyMetrics(payload.eventId);
+        payload.metrics = metrics;
+        payload.familyCount = metrics.familyCount;
+        payload.activeFamilies = metrics.activeFamilies;
+        payload.attendeeCount = metrics.attendeeCount;
+        payload.memberCount = metrics.memberCount;
+        payload.linkedDevices = metrics.linkedDevices;
+      }
       socketManager.broadcastToFamily(payload.familyGroupId, 'FAMILY_MEMBER_ADDED', payload);
-      if (payload.eventId) socketManager.broadcastToOrganizer(payload.eventId, 'FAMILY_MEMBER_ADDED', payload);
+      socketManager.broadcastToFamily(payload.familyGroupId, 'MEMBER_ADDED', payload);
+      if (payload.eventId) {
+        socketManager.broadcastToEvent(payload.eventId, 'MEMBER_ADDED', payload);
+        socketManager.broadcastToOrganizer(payload.eventId, 'FAMILY_MEMBER_ADDED', payload);
+        socketManager.broadcastToOrganizer(payload.eventId, 'MEMBER_ADDED', payload);
+      }
       res.status(200).json({ success: true, message: 'Child member added successfully', data: group });
     } catch (error) {
       next(error);
@@ -180,6 +228,29 @@ class FamilyController {
   async addGuardian(req, res, next) {
     try {
       const group = await familyService.addGuardian(req.user.userId, req.params.groupId, req.body);
+      const payload = {
+        groupId: String(group._id),
+        familyGroupId: String(group._id),
+        eventId: group.event ? String(group.event) : undefined,
+        memberType: 'guardian',
+        timestamp: new Date().toISOString(),
+      };
+      if (payload.eventId) {
+        const metrics = await familyService.getFamilyMetrics(payload.eventId);
+        payload.metrics = metrics;
+        payload.familyCount = metrics.familyCount;
+        payload.activeFamilies = metrics.activeFamilies;
+        payload.attendeeCount = metrics.attendeeCount;
+        payload.memberCount = metrics.memberCount;
+        payload.linkedDevices = metrics.linkedDevices;
+      }
+      socketManager.broadcastToFamily(payload.familyGroupId, 'FAMILY_MEMBER_ADDED', payload);
+      socketManager.broadcastToFamily(payload.familyGroupId, 'MEMBER_ADDED', payload);
+      if (payload.eventId) {
+        socketManager.broadcastToEvent(payload.eventId, 'MEMBER_ADDED', payload);
+        socketManager.broadcastToOrganizer(payload.eventId, 'FAMILY_MEMBER_ADDED', payload);
+        socketManager.broadcastToOrganizer(payload.eventId, 'MEMBER_ADDED', payload);
+      }
       res.status(200).json({ success: true, message: 'Guardian added successfully', data: group });
     } catch (error) {
       next(error);
@@ -241,6 +312,15 @@ class FamilyController {
         childMemberId: String(result.childMemberId),
         timestamp: new Date().toISOString(),
       };
+      if (payload.eventId) {
+        const metrics = await familyService.getFamilyMetrics(payload.eventId);
+        payload.metrics = metrics;
+        payload.familyCount = metrics.familyCount;
+        payload.activeFamilies = metrics.activeFamilies;
+        payload.attendeeCount = metrics.attendeeCount;
+        payload.memberCount = metrics.memberCount;
+        payload.linkedDevices = metrics.linkedDevices;
+      }
       socketManager.broadcastToFamily(payload.familyGroupId, 'DEVICE_PAIRED', payload);
       if (payload.eventId) {
         socketManager.broadcastToEvent(payload.eventId, 'DEVICE_PAIRED', payload);
