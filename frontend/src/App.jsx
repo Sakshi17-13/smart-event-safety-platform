@@ -29,6 +29,7 @@ function App() {
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Signup />} />
             </Route>
+            <Route path="/pair-device" element={<MotionPage className="min-h-screen"><DevicePairing /></MotionPage>} />
             <Route path="/device-pairing" element={<MotionPage className="min-h-screen"><DevicePairing /></MotionPage>} />
 
             {/* Protected Routes */}
