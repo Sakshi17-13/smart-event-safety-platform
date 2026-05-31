@@ -68,12 +68,17 @@ const ChildCard = ({ child, onSelect, onSOS, distance }) => (
   <motion.div
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
-    whileHover={{ scale: 1.02 }}
-    className={`glass rounded-2xl p-4 sm:p-5 border-glow cursor-pointer transition-all ${
-      child.selected ? 'border-primary shadow-[0_0_30px_rgba(59,130,246,0.22)]' : 'border-border'
+    whileHover={{ y: -4, scale: 1.012 }}
+    transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+    className={`glass rounded-2xl p-4 sm:p-5 border cursor-pointer transition-all relative overflow-hidden shadow-[0_18px_60px_rgba(0,0,0,0.18)] ${
+      child.selected ? 'border-primary shadow-[0_0_36px_rgba(59,130,246,0.26)]' : 'border-border hover:border-primary/40 hover:shadow-[0_0_28px_rgba(59,130,246,0.12)]'
     }`}
     onClick={() => onSelect(child)}
   >
+    <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/60 to-transparent" />
+    <div className={`absolute -right-16 -top-16 h-32 w-32 rounded-full blur-3xl ${
+      child.status === 'safe' ? 'bg-success/15' : child.status === 'warning' ? 'bg-warning/15' : child.status === 'danger' ? 'bg-danger/15' : 'bg-primary/10'
+    }`} />
     <div className="flex items-start justify-between gap-3 mb-4">
       <div className="flex items-center gap-4 min-w-0">
         <div className={`relative w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white font-black text-2xl shrink-0 shadow-[0_0_22px_rgba(59,130,246,0.28)] ${
@@ -81,7 +86,7 @@ const ChildCard = ({ child, onSelect, onSOS, distance }) => (
         }`}>
           {child.name.charAt(0)}
           {child.isPaired && (
-            <span className={`absolute -right-0.5 -bottom-0.5 h-4 w-4 rounded-full border-2 border-background ${
+            <span className={`absolute -right-0.5 -bottom-0.5 h-4 w-4 rounded-full border-2 border-background shadow-[0_0_18px_currentColor] ${
               child.status === 'safe' ? 'bg-success' : child.status === 'warning' ? 'bg-warning' : child.status === 'danger' ? 'bg-danger' : 'bg-text-muted'
             } animate-pulse`} />
           )}
@@ -91,7 +96,7 @@ const ChildCard = ({ child, onSelect, onSOS, distance }) => (
           <p className="text-xs text-text-muted mt-1">
             {child.age} years old - {child.memberRole}
           </p>
-          <p className="text-[11px] text-primary mt-1 uppercase tracking-wide">{child.connectionStatus}</p>
+          <p className="text-[11px] text-primary mt-1 uppercase tracking-[0.18em]">{child.connectionStatus}</p>
         </div>
       </div>
       <div className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border ${
@@ -1336,14 +1341,72 @@ const FamilyDashboard = () => {
 
       {!isLoadingFamilyGroups && (
       <>
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
+        <motion.div
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="glass rounded-2xl p-4 border-glow"
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs uppercase tracking-[0.2em] text-text-muted">Members</p>
+              <p className="text-2xl font-black text-text-primary mt-1">{displayChildren.length}</p>
+            </div>
+            <Users className="text-primary" size={24} />
+          </div>
+        </motion.div>
+        <motion.div
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.04 }}
+          className="glass rounded-2xl p-4 border border-success/30 shadow-[0_0_24px_rgba(16,185,129,0.12)]"
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs uppercase tracking-[0.2em] text-text-muted">Safe</p>
+              <p className="text-2xl font-black text-success mt-1">{safeCount}</p>
+            </div>
+            <CheckCircle className="text-success" size={24} />
+          </div>
+        </motion.div>
+        <motion.div
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.08 }}
+          className="glass rounded-2xl p-4 border border-warning/30 shadow-[0_0_24px_rgba(245,158,11,0.1)]"
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs uppercase tracking-[0.2em] text-text-muted">Attention</p>
+              <p className="text-2xl font-black text-warning mt-1">{displayChildren.filter(c => c.status !== 'safe').length}</p>
+            </div>
+            <AlertTriangle className="text-warning" size={24} />
+          </div>
+        </motion.div>
+        <motion.div
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.12 }}
+          className="glass rounded-2xl p-4 border border-primary/30 shadow-[0_0_24px_rgba(59,130,246,0.12)]"
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs uppercase tracking-[0.2em] text-text-muted">Tracking</p>
+              <p className="text-2xl font-black text-primary mt-1">{liveTrackedCount}</p>
+            </div>
+            <Navigation className="text-primary" size={24} />
+          </div>
+        </motion.div>
+      </div>
+
       {/* Main Content */}
-      <div className="grid grid-cols-1 2xl:grid-cols-[minmax(0,1.65fr)_minmax(360px,0.85fr)] gap-4 sm:gap-5 xl:gap-6 items-start">
+      <div className="grid grid-cols-1 gap-5 sm:gap-6">
         {/* Map Section */}
-        <div>
+        <div className="w-full max-w-[1500px] mx-auto">
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className={`glass rounded-2xl overflow-hidden border-glow h-[420px] sm:h-[520px] xl:h-[680px] relative ${
+            className={`glass rounded-3xl overflow-hidden border-glow h-[440px] sm:h-[560px] xl:h-[680px] 2xl:h-[720px] relative shadow-[0_0_60px_rgba(59,130,246,0.13)] ${
               displayChildren.some((child) => child.isPaired && child.geofenceState === 'breach')
                 ? 'ring-2 ring-danger shadow-[0_0_34px_rgba(239,68,68,0.36)]'
                 : displayChildren.some((child) => child.isPaired && child.geofenceState === 'warning')
@@ -1351,8 +1414,12 @@ const FamilyDashboard = () => {
                   : ''
             }`}
           >
-            <div className="absolute inset-x-0 top-0 z-[500] p-4 pointer-events-none">
-              <div className="flex flex-col gap-3">
+            <div className="absolute inset-x-0 top-0 z-[500] p-4 sm:p-5 pointer-events-none">
+              <div className="flex flex-col gap-3 max-w-5xl">
+                <div className="w-fit rounded-2xl border border-primary/30 bg-background/80 px-4 py-3 shadow-[0_0_36px_rgba(59,130,246,0.16)] backdrop-blur-xl">
+                  <p className="text-xs uppercase tracking-[0.25em] text-primary">Live Tracking Map</p>
+                  <p className="text-lg sm:text-2xl font-black text-text-primary">Family Command Radius</p>
+                </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="inline-flex items-center gap-2 rounded-full border border-success/40 bg-success/15 px-3 py-1.5 text-xs font-black text-success tracking-wide">
                     <span className="h-2 w-2 rounded-full bg-success animate-pulse" />
@@ -1498,9 +1565,9 @@ const FamilyDashboard = () => {
           </motion.div>
         </div>
 
-        {/* Side Panel */}
-        <div className="grid grid-cols-1 md:grid-cols-2 2xl:block 2xl:space-y-5 gap-4 sm:gap-5">
-          <div className="md:col-span-2 xl:col-span-1">
+        {/* Command Panels */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-12 gap-4 sm:gap-5 items-start">
+          <div className="lg:col-span-2 xl:col-span-4 xl:order-2">
             <LiveActivityFeed title="Family Realtime Timeline" compact includeEvent={includeFamilyTimelineEvent} starterEvents={starterTimelineEvents} />
           </div>
 
@@ -1508,7 +1575,7 @@ const FamilyDashboard = () => {
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
-              className="glass rounded-2xl p-4 sm:p-5 border-glow"
+              className="glass rounded-2xl p-4 sm:p-5 border-glow xl:col-span-4 xl:order-3"
             >
               <div className="flex items-start justify-between gap-3 mb-3">
                 <h3 className="text-lg font-bold text-text-primary flex items-center gap-2">
@@ -1532,7 +1599,7 @@ const FamilyDashboard = () => {
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
-              className="glass rounded-2xl p-4 sm:p-5 border-glow space-y-4"
+              className="glass rounded-2xl p-4 sm:p-5 border-glow space-y-4 xl:col-span-4 xl:order-4"
             >
               <h3 className="text-lg font-bold text-text-primary flex items-center gap-2">
                 <Shield className="text-primary" size={20} />
@@ -1578,7 +1645,7 @@ const FamilyDashboard = () => {
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
-              className="glass rounded-2xl p-4 sm:p-5 border-glow space-y-4"
+              className="glass rounded-2xl p-4 sm:p-5 border-glow space-y-4 xl:col-span-4 xl:order-5"
             >
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-bold text-text-primary flex items-center gap-2">
@@ -1632,7 +1699,7 @@ const FamilyDashboard = () => {
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
-              className="glass rounded-2xl p-4 sm:p-5 border-glow space-y-4"
+              className="glass rounded-2xl p-4 sm:p-5 border-glow space-y-4 xl:col-span-4 xl:order-6"
             >
               <h3 className="text-lg font-bold text-text-primary flex items-center gap-2">
                 <Users className="text-primary" size={20} />
@@ -1680,59 +1747,64 @@ const FamilyDashboard = () => {
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="space-y-4 md:col-span-2 xl:col-span-1"
+            className="space-y-4 lg:col-span-2 xl:col-span-8 xl:row-span-3 xl:order-1"
           >
-            <h3 className="text-lg font-bold text-text-primary flex items-center gap-2">
-              <User className="text-primary" size={20} />
-              Family Members
-            </h3>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <h3 className="text-xl font-black text-text-primary flex items-center gap-2">
+                <User className="text-primary" size={22} />
+                Family Members
+              </h3>
+              <span className="w-fit rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-bold text-primary">
+                Tactical roster - {liveTrackedCount} streaming
+              </span>
+            </div>
             {activeFamilyGroup && (
-              <form onSubmit={submitChild} className="glass rounded-2xl p-4 border-glow space-y-2">
+              <form onSubmit={submitChild} className="glass rounded-2xl p-4 border-glow grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_140px_180px_auto] gap-2 items-center">
                 <input value={childForm.name} onChange={(event) => setChildForm({ ...childForm, name: event.target.value })} className="w-full px-3 py-2 bg-surfaceLight border border-border rounded-lg text-text-primary" placeholder="Child member name" required />
-                <div className="grid grid-cols-2 gap-2">
-                  <input type="number" value={childForm.age} onChange={(event) => setChildForm({ ...childForm, age: event.target.value })} className="px-3 py-2 bg-surfaceLight border border-border rounded-lg text-text-primary" placeholder="Age" />
-                  <input value={childForm.deviceLabel} onChange={(event) => setChildForm({ ...childForm, deviceLabel: event.target.value })} className="px-3 py-2 bg-surfaceLight border border-border rounded-lg text-text-primary" placeholder="Device label" />
-                </div>
-                <button className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-success/20 text-success rounded-lg hover:bg-success/30">
+                <input type="number" value={childForm.age} onChange={(event) => setChildForm({ ...childForm, age: event.target.value })} className="px-3 py-2 bg-surfaceLight border border-border rounded-lg text-text-primary" placeholder="Age" />
+                <input value={childForm.deviceLabel} onChange={(event) => setChildForm({ ...childForm, deviceLabel: event.target.value })} className="px-3 py-2 bg-surfaceLight border border-border rounded-lg text-text-primary" placeholder="Device label" />
+                <button className="flex items-center justify-center gap-2 px-3 py-2 bg-success/20 text-success rounded-lg hover:bg-success/30">
                   <Plus size={16} />
                   {editingChildId ? 'Save Member' : 'Add Child Member'}
                 </button>
               </form>
             )}
-            {displayChildren.map((child) => (
-              <div key={child.id} className="space-y-2">
-                <ChildCard
-                  child={{ ...child, selected: selectedChild?.id === child.id }}
-                  onSelect={setSelectedChild}
-                  onSOS={handleSOS}
-                  distance={child.position ? calculateDistance(mapCenter, child.position) : null}
-                />
-                <div className="grid grid-cols-3 gap-2">
-                  <button
-                    onClick={() => generatePairing(child)}
-                    className="flex items-center justify-center gap-2 px-3 py-2 bg-surfaceLight border border-border text-text-secondary hover:text-primary hover:border-primary rounded-lg transition-colors text-sm"
-                  >
-                    <Watch size={16} />
-                    Pair
-                  </button>
-                  <button
-                    onClick={() => editChild(child)}
-                    className="flex items-center justify-center gap-2 px-3 py-2 bg-primary/20 text-primary rounded-lg transition-colors text-sm"
-                  >
-                    <Edit3 size={16} />
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => removeChild(child.id)}
-                    disabled={deletingChildId === child.id}
-                    className="flex items-center justify-center gap-2 px-3 py-2 bg-danger/20 text-danger rounded-lg transition-colors text-sm disabled:opacity-60 disabled:cursor-not-allowed"
-                  >
-                    {deletingChildId === child.id ? <span className="h-4 w-4 rounded-full border border-danger/40 border-t-danger animate-spin" /> : <Trash2 size={16} />}
-                    {deletingChildId === child.id ? 'Removing' : 'Remove'}
-                  </button>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {displayChildren.map((child) => (
+                <div key={child.id} className="space-y-2">
+                  <ChildCard
+                    child={{ ...child, selected: selectedChild?.id === child.id }}
+                    onSelect={setSelectedChild}
+                    onSOS={handleSOS}
+                    distance={child.position ? calculateDistance(mapCenter, child.position) : null}
+                  />
+                  <div className="grid grid-cols-3 gap-2">
+                    <button
+                      onClick={() => generatePairing(child)}
+                      className="flex items-center justify-center gap-2 px-3 py-2 bg-surfaceLight border border-border text-text-secondary hover:text-primary hover:border-primary rounded-lg transition-colors text-sm"
+                    >
+                      <Watch size={16} />
+                      Pair
+                    </button>
+                    <button
+                      onClick={() => editChild(child)}
+                      className="flex items-center justify-center gap-2 px-3 py-2 bg-primary/20 text-primary rounded-lg transition-colors text-sm"
+                    >
+                      <Edit3 size={16} />
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => removeChild(child.id)}
+                      disabled={deletingChildId === child.id}
+                      className="flex items-center justify-center gap-2 px-3 py-2 bg-danger/20 text-danger rounded-lg transition-colors text-sm disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      {deletingChildId === child.id ? <span className="h-4 w-4 rounded-full border border-danger/40 border-t-danger animate-spin" /> : <Trash2 size={16} />}
+                      {deletingChildId === child.id ? 'Removing' : 'Remove'}
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
             {displayChildren.length === 0 && (
               <div className="glass rounded-2xl p-6 border-glow text-center text-text-muted">
                 Join an event or add members to start family tracking.
@@ -1744,7 +1816,7 @@ const FamilyDashboard = () => {
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
-              className="glass rounded-2xl p-4 sm:p-5 border-glow"
+              className="glass rounded-2xl p-4 sm:p-5 border-glow xl:col-span-4 xl:order-7"
             >
               <h3 className="text-lg font-bold text-text-primary mb-3 flex items-center gap-2">
                 <Watch className="text-primary" size={20} />
@@ -1778,6 +1850,7 @@ const FamilyDashboard = () => {
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
+                className="xl:col-span-4 xl:order-8"
               >
                 <GeofencePanel
                   geofences={geofences}
@@ -1792,7 +1865,7 @@ const FamilyDashboard = () => {
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
-              className="glass rounded-2xl p-4 sm:p-5 border-glow"
+              className="glass rounded-2xl p-4 sm:p-5 border-glow xl:col-span-4 xl:order-9"
             >
               <h3 className="text-lg font-bold text-text-primary mb-4 flex items-center gap-2">
                 <AlertTriangle className="text-warning" size={20} />
@@ -1828,35 +1901,6 @@ const FamilyDashboard = () => {
             </motion.div>
           )}
 
-          {/* Quick Stats */}
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="glass rounded-2xl p-4 sm:p-5 border-glow"
-          >
-            <h3 className="text-lg font-bold text-text-primary mb-4 flex items-center gap-2">
-              <Navigation className="text-accent" size={20} />
-              Quick Stats
-            </h3>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between p-3 rounded-lg bg-surfaceLight">
-                <span className="text-text-secondary text-sm">Total Members</span>
-                <span className="font-bold text-text-primary">{displayChildren.length}</span>
-              </div>
-              <div className="flex items-center justify-between p-3 rounded-lg bg-surfaceLight">
-                <span className="text-text-secondary text-sm">Safe</span>
-                <span className="font-bold text-success">{displayChildren.filter(c => c.status === 'safe').length}</span>
-              </div>
-              <div className="flex items-center justify-between p-3 rounded-lg bg-surfaceLight">
-                <span className="text-text-secondary text-sm">Needs Attention</span>
-                <span className="font-bold text-warning">{displayChildren.filter(c => c.status !== 'safe').length}</span>
-              </div>
-              <div className="flex items-center justify-between p-3 rounded-lg bg-surfaceLight">
-                <span className="text-text-secondary text-sm">Active Geofences</span>
-                <span className="font-bold text-primary">{geofences.filter(g => g.active).length}</span>
-              </div>
-            </div>
-          </motion.div>
         </div>
       </div>
       </>
