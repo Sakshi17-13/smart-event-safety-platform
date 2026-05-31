@@ -133,10 +133,10 @@ const LiveActivityFeed = ({ title = 'Live Activity', limit = 7, compact = false,
   }, [on, off, limit, includeEvent])
 
   return (
-    <div className={`glass rounded-xl border-glow ${compact ? 'p-4' : 'p-6'}`}>
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="font-bold text-text-primary flex items-center gap-2">
-          <Activity className="text-primary" size={18} />
+    <div className={`glass rounded-xl ${compact ? 'p-4 border border-border/80' : 'p-6 border-glow'}`}>
+      <div className="flex items-center justify-between mb-3">
+        <h3 className={`${compact ? 'text-sm text-text-secondary' : 'text-base text-text-primary'} font-bold flex items-center gap-2`}>
+          <Activity className="text-primary" size={compact ? 16 : 18} />
           {title}
         </h3>
         <span className="text-xs px-2 py-1 rounded bg-success/10 text-success flex items-center gap-1">
@@ -144,7 +144,7 @@ const LiveActivityFeed = ({ title = 'Live Activity', limit = 7, compact = false,
           Live
         </span>
       </div>
-      <div className="relative space-y-2 max-h-80 overflow-y-auto pr-1">
+      <div className={`relative space-y-2 ${compact ? 'max-h-60' : 'max-h-80'} overflow-y-auto pr-1`}>
         {items.length > 1 && <div className="absolute left-[22px] top-2 bottom-2 w-px bg-gradient-to-b from-primary/50 via-accent/25 to-transparent" />}
         <AnimatePresence initial={false}>
           {items.map((item) => {
@@ -155,7 +155,7 @@ const LiveActivityFeed = ({ title = 'Live Activity', limit = 7, compact = false,
                 initial={{ opacity: 0, y: -10, scale: 0.98 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 8 }}
-                className="relative p-3 rounded-lg bg-surfaceLight/90 border border-border shadow-[0_0_18px_rgba(59,130,246,0.06)]"
+                className={`relative rounded-lg bg-surfaceLight/80 border border-border ${compact ? 'p-2.5 shadow-none' : 'p-3 shadow-[0_0_18px_rgba(59,130,246,0.06)]'}`}
               >
                 <div className="flex items-start gap-3">
                   <div className="relative z-10 w-8 h-8 rounded-full bg-background border border-primary/20 flex items-center justify-center shrink-0">
@@ -166,7 +166,7 @@ const LiveActivityFeed = ({ title = 'Live Activity', limit = 7, compact = false,
                       <p className="text-sm font-semibold text-text-primary truncate">{item.label}</p>
                       <span className="text-[11px] text-success shrink-0">{formatLiveAge(item.createdAt || nowTick)}</span>
                     </div>
-                    <p className="text-xs text-text-secondary mt-1">{item.body}</p>
+                    <p className="text-xs text-text-secondary mt-0.5">{item.body}</p>
                   </div>
                 </div>
               </motion.div>

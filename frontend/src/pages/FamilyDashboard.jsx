@@ -70,14 +70,14 @@ const ChildCard = ({ child, onSelect, onSOS, distance }) => (
     animate={{ opacity: 1, y: 0 }}
     whileHover={{ y: -4, scale: 1.012 }}
     transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-    className={`glass rounded-2xl p-4 sm:p-5 border cursor-pointer transition-all relative overflow-hidden shadow-[0_18px_60px_rgba(0,0,0,0.18)] ${
-      child.selected ? 'border-primary shadow-[0_0_36px_rgba(59,130,246,0.26)]' : 'border-border hover:border-primary/40 hover:shadow-[0_0_28px_rgba(59,130,246,0.12)]'
+    className={`glass rounded-2xl p-4 sm:p-5 border cursor-pointer transition-all relative overflow-hidden shadow-[0_14px_42px_rgba(0,0,0,0.14)] ${
+      child.selected ? 'border-primary shadow-[0_0_28px_rgba(59,130,246,0.2)]' : 'border-border hover:border-primary/35 hover:shadow-[0_0_20px_rgba(59,130,246,0.1)]'
     }`}
     onClick={() => onSelect(child)}
   >
     <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/60 to-transparent" />
     <div className={`absolute -right-16 -top-16 h-32 w-32 rounded-full blur-3xl ${
-      child.status === 'safe' ? 'bg-success/15' : child.status === 'warning' ? 'bg-warning/15' : child.status === 'danger' ? 'bg-danger/15' : 'bg-primary/10'
+      child.status === 'safe' ? 'bg-success/10' : child.status === 'warning' ? 'bg-warning/10' : child.status === 'danger' ? 'bg-danger/10' : 'bg-primary/10'
     }`} />
     <div className="flex items-start justify-between gap-3 mb-4">
       <div className="flex items-center gap-4 min-w-0">
@@ -1341,133 +1341,66 @@ const FamilyDashboard = () => {
 
       {!isLoadingFamilyGroups && (
       <>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <motion.div
-          initial={{ opacity: 0, y: 14 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="glass rounded-2xl p-3 sm:p-4 border-glow"
-        >
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-xs uppercase tracking-[0.2em] text-text-muted">Members</p>
-              <p className="text-2xl font-black text-text-primary mt-1">{displayChildren.length}</p>
-            </div>
-            <Users className="text-primary" size={24} />
-          </div>
-        </motion.div>
-        <motion.div
-          initial={{ opacity: 0, y: 14 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.04 }}
-          className="glass rounded-2xl p-3 sm:p-4 border border-success/30 shadow-[0_0_24px_rgba(16,185,129,0.12)]"
-        >
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-xs uppercase tracking-[0.2em] text-text-muted">Safe</p>
-              <p className="text-2xl font-black text-success mt-1">{safeCount}</p>
-            </div>
-            <CheckCircle className="text-success" size={24} />
-          </div>
-        </motion.div>
-        <motion.div
-          initial={{ opacity: 0, y: 14 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.08 }}
-          className="glass rounded-2xl p-3 sm:p-4 border border-warning/30 shadow-[0_0_24px_rgba(245,158,11,0.1)]"
-        >
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-xs uppercase tracking-[0.2em] text-text-muted">Attention</p>
-              <p className="text-2xl font-black text-warning mt-1">{displayChildren.filter(c => c.status !== 'safe').length}</p>
-            </div>
-            <AlertTriangle className="text-warning" size={24} />
-          </div>
-        </motion.div>
-        <motion.div
-          initial={{ opacity: 0, y: 14 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.12 }}
-          className="glass rounded-2xl p-3 sm:p-4 border border-primary/30 shadow-[0_0_24px_rgba(59,130,246,0.12)]"
-        >
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-xs uppercase tracking-[0.2em] text-text-muted">Tracking</p>
-              <p className="text-2xl font-black text-primary mt-1">{liveTrackedCount}</p>
-            </div>
-            <Navigation className="text-primary" size={24} />
-          </div>
-        </motion.div>
-      </div>
-
       {/* Main Content */}
-      <div className="grid grid-cols-1 gap-4 sm:gap-5">
+      <div className="grid grid-cols-1 gap-6 sm:gap-8">
         {/* Map Section */}
-        <div className="w-full max-w-[1800px] mx-auto">
+        <div className="w-full max-w-[1920px] mx-auto">
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className={`glass rounded-3xl overflow-hidden border-glow h-[520px] sm:h-[640px] xl:h-[760px] 2xl:h-[820px] relative shadow-[0_0_70px_rgba(59,130,246,0.16)] ${
+            className={`glass rounded-3xl overflow-hidden border border-primary/25 h-[580px] sm:h-[700px] xl:h-[820px] 2xl:h-[880px] relative shadow-[0_0_48px_rgba(59,130,246,0.12)] ${
               displayChildren.some((child) => child.isPaired && child.geofenceState === 'breach')
-                ? 'ring-2 ring-danger shadow-[0_0_34px_rgba(239,68,68,0.36)]'
+                ? 'ring-1 ring-danger shadow-[0_0_28px_rgba(239,68,68,0.24)]'
                 : displayChildren.some((child) => child.isPaired && child.geofenceState === 'warning')
-                  ? 'ring-2 ring-warning shadow-[0_0_28px_rgba(245,158,11,0.26)]'
+                  ? 'ring-1 ring-warning shadow-[0_0_24px_rgba(245,158,11,0.18)]'
                   : ''
             }`}
           >
-            <div className="absolute inset-x-0 top-0 z-[500] p-4 sm:p-5 pointer-events-none">
-              <div className="flex flex-col gap-3 max-w-5xl">
-                <div className="w-fit rounded-2xl border border-primary/30 bg-background/80 px-4 py-3 shadow-[0_0_36px_rgba(59,130,246,0.16)] backdrop-blur-xl">
+            <div className="absolute inset-x-0 top-0 z-[500] p-5 sm:p-7 pointer-events-none">
+              <div className="flex flex-col gap-3 max-w-4xl">
+                <div className="w-fit rounded-2xl border border-primary/20 bg-background/75 px-5 py-4 shadow-[0_0_28px_rgba(59,130,246,0.12)] backdrop-blur-xl">
                   <p className="text-xs uppercase tracking-[0.25em] text-primary">Live Tracking Map</p>
-                  <p className="text-lg sm:text-2xl font-black text-text-primary">Family Command Radius</p>
+                  <p className="text-2xl sm:text-4xl font-black text-text-primary">Family Command Radius</p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="inline-flex items-center gap-2 rounded-full border border-success/40 bg-success/15 px-3 py-1.5 text-xs font-black text-success tracking-wide">
+                  <span className="inline-flex items-center gap-2 rounded-full border border-success/30 bg-background/65 px-3 py-1.5 text-xs font-bold text-success tracking-wide backdrop-blur-xl">
                     <span className="h-2 w-2 rounded-full bg-success animate-pulse" />
                     LIVE
                   </span>
-                  <span className="inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/15 px-3 py-1.5 text-xs font-black text-primary tracking-wide">
+                  <span className="inline-flex items-center gap-2 rounded-full border border-primary/25 bg-background/65 px-3 py-1.5 text-xs font-bold text-primary tracking-wide backdrop-blur-xl">
                     <Navigation size={13} />
                     TRACKING {liveTrackedCount}
                   </span>
-                  <span className="inline-flex items-center gap-2 rounded-full border border-success/35 bg-background/75 px-3 py-1.5 text-xs font-bold text-success">
-                    SAFE {safeCount}
-                  </span>
-                  <span className="inline-flex items-center gap-2 rounded-full border border-warning/40 bg-background/75 px-3 py-1.5 text-xs font-bold text-warning">
-                    WARNING {warningCount}
-                  </span>
-                  <span className="inline-flex items-center gap-2 rounded-full border border-danger/40 bg-background/75 px-3 py-1.5 text-xs font-bold text-danger">
-                    BREACH {breachCount}
-                  </span>
                 </div>
                 {SIMULATION_MODE && (
-                  <div className="w-fit rounded-full border border-warning/30 bg-warning/15 px-3 py-1.5 text-xs font-bold text-warning shadow-[0_0_20px_rgba(245,158,11,0.12)]">
+                  <div className="w-fit rounded-full border border-warning/25 bg-background/65 px-3 py-1.5 text-xs font-bold text-warning backdrop-blur-xl">
                     Realtime Simulation Active
                   </div>
                 )}
               </div>
             </div>
-            <div className="absolute inset-x-0 bottom-0 z-[500] p-4 sm:p-5 pointer-events-none">
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 max-w-5xl">
-                <div className="rounded-2xl border border-success/30 bg-background/80 px-4 py-3 backdrop-blur-xl shadow-[0_0_24px_rgba(16,185,129,0.12)]">
+            <div className="absolute inset-x-0 bottom-0 z-[500] p-5 sm:p-7 pointer-events-none">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 max-w-4xl">
+                <div className="rounded-2xl border border-success/25 bg-background/70 px-4 py-3 backdrop-blur-xl">
                   <p className="text-[10px] uppercase tracking-[0.2em] text-text-muted">Live</p>
                   <p className="text-lg font-black text-success flex items-center gap-2">
                     <span className="h-2 w-2 rounded-full bg-success animate-pulse" />
                     Online
                   </p>
                 </div>
-                <div className="rounded-2xl border border-primary/30 bg-background/80 px-4 py-3 backdrop-blur-xl shadow-[0_0_24px_rgba(59,130,246,0.12)]">
+                <div className="rounded-2xl border border-primary/25 bg-background/70 px-4 py-3 backdrop-blur-xl">
                   <p className="text-[10px] uppercase tracking-[0.2em] text-text-muted">Tracking</p>
                   <p className="text-lg font-black text-primary">{liveTrackedCount} streams</p>
                 </div>
-                <div className={`rounded-2xl border px-4 py-3 backdrop-blur-xl bg-background/80 ${
-                  breachCount > 0 ? 'border-danger/40 shadow-[0_0_24px_rgba(239,68,68,0.16)]' : warningCount > 0 ? 'border-warning/40 shadow-[0_0_24px_rgba(245,158,11,0.14)]' : 'border-success/30 shadow-[0_0_24px_rgba(16,185,129,0.12)]'
+                <div className={`rounded-2xl border px-4 py-3 backdrop-blur-xl bg-background/70 ${
+                  breachCount > 0 ? 'border-danger/35' : warningCount > 0 ? 'border-warning/35' : 'border-success/25'
                 }`}>
                   <p className="text-[10px] uppercase tracking-[0.2em] text-text-muted">Geofence</p>
                   <p className={`text-lg font-black ${breachCount > 0 ? 'text-danger' : warningCount > 0 ? 'text-warning' : 'text-success'}`}>
                     {breachCount > 0 ? 'Breach' : warningCount > 0 ? 'Warning' : 'Secure'}
                   </p>
                 </div>
-                <div className="rounded-2xl border border-accent/30 bg-background/80 px-4 py-3 backdrop-blur-xl shadow-[0_0_24px_rgba(139,92,246,0.12)]">
+                <div className="rounded-2xl border border-accent/25 bg-background/70 px-4 py-3 backdrop-blur-xl">
                   <p className="text-[10px] uppercase tracking-[0.2em] text-text-muted">Active Members</p>
                   <p className="text-lg font-black text-text-primary">{displayChildren.length}</p>
                 </div>
@@ -1593,32 +1526,32 @@ const FamilyDashboard = () => {
         </div>
 
         {/* Command Panels */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-12 gap-3 sm:gap-4 items-start auto-rows-min">
-          <div className="lg:col-span-2 xl:col-span-4 xl:order-4">
-            <LiveActivityFeed title="Family Realtime Timeline" compact includeEvent={includeFamilyTimelineEvent} starterEvents={starterTimelineEvents} />
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 sm:gap-6 items-start auto-rows-min">
+          <div className="xl:col-span-5 xl:order-2">
+            <LiveActivityFeed title="Realtime Alerts" limit={5} compact includeEvent={includeFamilyTimelineEvent} starterEvents={starterTimelineEvents} />
           </div>
 
           {activeFamilyGroup && (
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
-              className="glass rounded-2xl p-4 border-glow xl:col-span-4 xl:order-6"
+              className="glass rounded-2xl p-4 border border-border/80 xl:col-span-3 xl:order-5"
             >
               <div className="flex items-start justify-between gap-3 mb-3">
-                <h3 className="text-lg font-bold text-text-primary flex items-center gap-2">
+                <h3 className="text-sm font-bold text-text-secondary flex items-center gap-2">
                   <Shield className="text-primary" size={20} />
                   Family Code
                 </h3>
                 <button
                   onClick={deleteFamilyGroup}
                   disabled={isDeletingFamilyGroup}
-                  className="px-3 py-2 rounded-lg bg-danger/15 text-danger hover:bg-danger/25 disabled:opacity-60 text-xs font-medium transition-colors"
+                  className="px-3 py-2 rounded-lg bg-danger/10 text-danger hover:bg-danger/20 disabled:opacity-60 text-xs font-medium transition-colors"
                 >
                   {isDeletingFamilyGroup ? 'Deleting...' : 'Delete Group'}
                 </button>
               </div>
-              <p className="text-3xl font-bold text-primary tracking-widest">{activeFamilyGroup.code}</p>
-              <p className="text-sm text-text-muted mt-2">Permanent code for this family group. Use it with a fresh pair code on the wearable pairing page.</p>
+              <p className="text-2xl font-bold text-primary tracking-widest">{activeFamilyGroup.code}</p>
+              <p className="text-xs text-text-muted mt-2">Use with a fresh pair code on the wearable pairing page.</p>
             </motion.div>
           )}
 
@@ -1626,20 +1559,20 @@ const FamilyDashboard = () => {
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
-              className="glass rounded-2xl p-4 border-glow space-y-3 xl:col-span-4 xl:order-5"
+              className="glass rounded-2xl p-4 border border-border/80 space-y-3 xl:col-span-3 xl:order-6"
             >
-              <h3 className="text-lg font-bold text-text-primary flex items-center gap-2">
+              <h3 className="text-sm font-bold text-text-secondary flex items-center gap-2">
                 <Shield className="text-primary" size={20} />
                 Geofence Engine
               </h3>
-              <form onSubmit={saveGeofenceSettings} className="grid grid-cols-2 gap-3">
+              <form onSubmit={saveGeofenceSettings} className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="block text-xs text-text-muted mb-1">Warning radius</label>
                   <input
                     type="number"
                     value={geofenceForm.warningRadiusMeters}
                     onChange={(event) => setGeofenceForm({ ...geofenceForm, warningRadiusMeters: event.target.value })}
-                    className="w-full px-3 py-2 bg-surfaceLight border border-border rounded-lg text-text-primary"
+                    className="w-full px-3 py-2 bg-surfaceLight/70 border border-border rounded-lg text-text-primary"
                   />
                 </div>
                 <div>
@@ -1648,20 +1581,20 @@ const FamilyDashboard = () => {
                     type="number"
                     value={geofenceForm.safeRadiusMeters}
                     onChange={(event) => setGeofenceForm({ ...geofenceForm, safeRadiusMeters: event.target.value })}
-                    className="w-full px-3 py-2 bg-surfaceLight border border-border rounded-lg text-text-primary"
+                    className="w-full px-3 py-2 bg-surfaceLight/70 border border-border rounded-lg text-text-primary"
                   />
                 </div>
-                <button className="col-span-2 px-3 py-2 rounded-lg bg-primary/20 text-primary hover:bg-primary/30">
+                <button className="col-span-2 px-3 py-2 rounded-lg bg-primary/15 text-primary hover:bg-primary/25">
                   Save Geofence
                 </button>
               </form>
-              <div className="grid grid-cols-2 gap-3 text-center">
-                <div className="p-3 rounded-xl bg-warning/10 border border-warning/30">
-                  <p className="text-xl font-bold text-warning">{activeGeofence.warningRadiusMeters}m</p>
+              <div className="grid grid-cols-2 gap-2 text-center">
+                <div className="p-2 rounded-xl bg-warning/5 border border-warning/20">
+                  <p className="text-lg font-bold text-warning">{activeGeofence.warningRadiusMeters}m</p>
                   <p className="text-xs text-text-muted">Warning</p>
                 </div>
-                <div className="p-3 rounded-xl bg-success/10 border border-success/30">
-                  <p className="text-xl font-bold text-success">{activeGeofence.safeRadiusMeters}m</p>
+                <div className="p-2 rounded-xl bg-success/5 border border-success/20">
+                  <p className="text-lg font-bold text-success">{activeGeofence.safeRadiusMeters}m</p>
                   <p className="text-xs text-text-muted">Safe</p>
                 </div>
               </div>
@@ -1672,19 +1605,19 @@ const FamilyDashboard = () => {
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
-              className="glass rounded-2xl p-4 border-glow space-y-3 xl:col-span-4 xl:order-2"
+              className="glass rounded-2xl p-4 border border-border/80 space-y-3 xl:col-span-4 xl:order-3"
             >
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-bold text-text-primary flex items-center gap-2">
+                <h3 className="text-sm font-bold text-text-secondary flex items-center gap-2">
                   <Radio className="text-primary" size={20} />
                   Device Management
                 </h3>
-                <span className="text-xs px-2 py-1 rounded bg-primary/20 text-primary">{linkedDeviceCount} linked</span>
+                <span className="text-xs px-2 py-1 rounded bg-primary/10 text-primary">{linkedDeviceCount} linked</span>
               </div>
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {deviceRows.map((device) => {
                   return (
-                    <div key={device.deviceId || device.childMemberId} className={`p-4 rounded-xl bg-surfaceLight border transition-all ${device.state.panel} ${device.state.glow}`}>
+                    <div key={device.deviceId || device.childMemberId} className={`p-3 rounded-xl bg-surfaceLight/70 border transition-all ${device.state.panel}`}>
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <p className="font-semibold text-text-primary">{device.label || device.deviceId}</p>
@@ -1726,15 +1659,15 @@ const FamilyDashboard = () => {
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
-              className="glass rounded-2xl p-4 border-glow space-y-3 xl:col-span-3 xl:order-3"
+              className="glass rounded-2xl p-4 border border-border/80 space-y-3 xl:col-span-3 xl:order-4"
             >
-              <h3 className="text-lg font-bold text-text-primary flex items-center gap-2">
+              <h3 className="text-sm font-bold text-text-secondary flex items-center gap-2">
                 <Users className="text-primary" size={20} />
                 Guardians
               </h3>
               <div className="space-y-2">
                 {guardianRows.map((guardian) => (
-                  <div key={guardian._id || guardian.user} className="p-3 rounded-xl bg-surfaceLight border border-border flex items-center justify-between gap-3">
+                  <div key={guardian._id || guardian.user} className="p-3 rounded-xl bg-surfaceLight/70 border border-border flex items-center justify-between gap-3">
                     <div>
                       <p className="font-semibold text-text-primary">{guardian.name || 'Guardian'}</p>
                       <p className="text-xs text-text-muted">
@@ -1774,19 +1707,19 @@ const FamilyDashboard = () => {
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="space-y-3 lg:col-span-2 xl:col-span-5 xl:order-1"
+            className="space-y-4 xl:col-span-7 xl:order-1"
           >
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-1">
               <h3 className="text-xl font-black text-text-primary flex items-center gap-2">
                 <User className="text-primary" size={22} />
-                Family Members
+                Child Tracking
               </h3>
-              <span className="w-fit rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-bold text-primary">
+              <span className="w-fit rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-bold text-primary">
                 Tactical roster - {liveTrackedCount} streaming
               </span>
             </div>
             {activeFamilyGroup && (
-              <form onSubmit={submitChild} className="glass rounded-2xl p-3 border-glow grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_110px_150px_auto] gap-2 items-center">
+              <form onSubmit={submitChild} className="glass rounded-2xl p-4 border border-border/80 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_110px_150px_auto] gap-2 items-center">
                 <input value={childForm.name} onChange={(event) => setChildForm({ ...childForm, name: event.target.value })} className="w-full px-3 py-2 bg-surfaceLight border border-border rounded-lg text-text-primary" placeholder="Child member name" required />
                 <input type="number" value={childForm.age} onChange={(event) => setChildForm({ ...childForm, age: event.target.value })} className="px-3 py-2 bg-surfaceLight border border-border rounded-lg text-text-primary" placeholder="Age" />
                 <input value={childForm.deviceLabel} onChange={(event) => setChildForm({ ...childForm, deviceLabel: event.target.value })} className="px-3 py-2 bg-surfaceLight border border-border rounded-lg text-text-primary" placeholder="Device label" />
@@ -1843,7 +1776,7 @@ const FamilyDashboard = () => {
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
-              className="glass rounded-2xl p-4 border-glow xl:col-span-4 xl:order-7"
+              className="glass rounded-2xl p-4 border border-border/80 xl:col-span-3 xl:order-7"
             >
               <h3 className="text-lg font-bold text-text-primary mb-3 flex items-center gap-2">
                 <Watch className="text-primary" size={20} />
@@ -1877,7 +1810,7 @@ const FamilyDashboard = () => {
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
-                className="xl:col-span-4 xl:order-8"
+                className="xl:col-span-3 xl:order-8"
               >
                 <GeofencePanel
                   geofences={geofences}
@@ -1892,13 +1825,13 @@ const FamilyDashboard = () => {
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
-              className="glass rounded-2xl p-4 border-glow xl:col-span-4 xl:order-8"
+              className="glass rounded-2xl p-4 border border-border/80 xl:col-span-5 xl:order-9"
             >
-              <h3 className="text-lg font-bold text-text-primary mb-4 flex items-center gap-2">
+              <h3 className="text-sm font-bold text-text-secondary mb-3 flex items-center gap-2">
                 <AlertTriangle className="text-warning" size={20} />
                 Breach History
               </h3>
-              <div className="space-y-3 max-h-72 overflow-y-auto">
+              <div className="space-y-2 max-h-52 overflow-y-auto">
                 {(activeFamilyGroup.geofenceHistory || []).map((item) => (
                   <div
                     key={item._id}
