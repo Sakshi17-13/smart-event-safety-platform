@@ -48,7 +48,7 @@ const RecentAlert = ({ alert }) => (
   </div>
 )
 
-const Dashboard = () => {
+const SystemOverviewDashboard = () => {
   const [stats, setStats] = useState({
     totalAlerts: 0,
     activeEvents: 0,
@@ -107,8 +107,8 @@ const Dashboard = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-text-primary text-glow">Dashboard</h1>
-          <p className="text-text-muted mt-1">Real-time safety monitoring overview</p>
+          <h1 className="text-3xl font-bold text-text-primary text-glow">System Overview</h1>
+          <p className="text-text-muted mt-1">Platform-wide health, incident volume, and service readiness</p>
         </div>
         <div className="flex items-center gap-2">
           <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-success animate-pulse' : 'bg-danger'}`} />
@@ -122,28 +122,28 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
           icon={AlertTriangle}
-          label="Total Alerts"
+          label="Platform Alerts"
           value={stats.totalAlerts}
           trend={12}
           color="bg-danger"
         />
         <StatCard
           icon={Activity}
-          label="Active Events"
+          label="Live Event Ops"
           value={stats.activeEvents}
           trend={8}
           color="bg-warning"
         />
         <StatCard
           icon={Users}
-          label="Active Users"
+          label="Managed Users"
           value={stats.totalUsers}
           trend={5}
           color="bg-primary"
         />
         <StatCard
           icon={Shield}
-          label="System Health"
+          label="Platform Health"
           value={`${stats.systemHealth}%`}
           trend={2}
           color="bg-success"
@@ -175,15 +175,15 @@ const Dashboard = () => {
 
         {/* Quick Actions */}
         <div className="space-y-4">
-          <h2 className="text-xl font-bold text-text-primary">Quick Actions</h2>
+          <h2 className="text-xl font-bold text-text-primary">System Actions</h2>
           <div className="space-y-3">
             <button className="w-full glass rounded-lg p-4 text-left hover:border-primary transition-all flex items-center gap-3">
               <div className="p-2 rounded-lg bg-primary/20">
                 <AlertTriangle size={20} className="text-primary" />
               </div>
               <div>
-                <p className="font-medium text-text-primary">Report Incident</p>
-                <p className="text-xs text-text-muted">Create a new alert</p>
+                <p className="font-medium text-text-primary">System Triage</p>
+                <p className="text-xs text-text-muted">Review platform incidents</p>
               </div>
             </button>
             <button className="w-full glass rounded-lg p-4 text-left hover:border-primary transition-all flex items-center gap-3">
@@ -191,8 +191,8 @@ const Dashboard = () => {
                 <Activity size={20} className="text-accent" />
               </div>
               <div>
-                <p className="font-medium text-text-primary">View Analytics</p>
-                <p className="text-xs text-text-muted">Detailed insights</p>
+                <p className="font-medium text-text-primary">Operations Analytics</p>
+                <p className="text-xs text-text-muted">Inspect platform trends</p>
               </div>
             </button>
             <button className="w-full glass rounded-lg p-4 text-left hover:border-primary transition-all flex items-center gap-3">
@@ -200,8 +200,8 @@ const Dashboard = () => {
                 <Users size={20} className="text-success" />
               </div>
               <div>
-                <p className="font-medium text-text-primary">Manage Users</p>
-                <p className="text-xs text-text-muted">User administration</p>
+                <p className="font-medium text-text-primary">User Governance</p>
+                <p className="text-xs text-text-muted">Administer access roles</p>
               </div>
             </button>
           </div>
@@ -232,4 +232,4 @@ const Dashboard = () => {
   )
 }
 
-export default Dashboard
+export default SystemOverviewDashboard

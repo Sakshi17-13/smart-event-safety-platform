@@ -18,13 +18,13 @@ import {
 } from 'lucide-react'
 
 const menuItems = [
-  { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
-  { icon: Radar, label: 'Organizer', path: '/organizer' },
+  { icon: LayoutDashboard, label: 'System', path: '/dashboard' },
+  { icon: Radar, label: 'Organizer Ops', path: '/organizer' },
   { icon: Heart, label: 'Family', path: '/family' },
   { icon: Watch, label: 'Pair Device', path: '/device-pairing' },
   { icon: AlertTriangle, label: 'Alerts', path: '/alerts' },
   { icon: Calendar, label: 'Events', path: '/events' },
-  { icon: Users, label: 'Users', path: '/users' },
+  { icon: Users, label: 'User Management', path: '/users' },
   { icon: Activity, label: 'Monitoring', path: '/monitoring' },
   { icon: Shield, label: 'Security', path: '/security' },
   { icon: Settings, label: 'Settings', path: '/settings' },
