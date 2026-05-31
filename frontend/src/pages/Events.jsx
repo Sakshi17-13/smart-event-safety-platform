@@ -4,7 +4,9 @@ import { useAuth } from '../context/AuthContext'
 import { useSocket } from '../context/SocketContext'
 import {
   Calendar,
+  CheckCircle,
   Edit3,
+  Loader2,
   MapPin,
   Plus,
   Radar,
@@ -41,6 +43,7 @@ const Events = () => {
   const [form, setForm] = useState(emptyEvent)
   const [editingId, setEditingId] = useState(null)
   const [message, setMessage] = useState('')
+  const [locationState, setLocationState] = useState({ status: 'idle', message: '' })
   const canManage = ['SUPER_ADMIN', 'EVENT_ORGANIZER'].includes(user?.role)
 
   const loadEvents = async () => {
@@ -77,6 +80,42 @@ const Events = () => {
   const resetForm = () => {
     setForm(emptyEvent)
     setEditingId(null)
+    setLocationState({ status: 'idle', message: '' })
+  }
+
+  const geolocationErrorMessage = (error) => {
+    if (error?.code === 1) return 'Location permission was denied. Enable location access and try again.'
+    if (error?.code === 2) return 'Current location is unavailable. Check GPS, Wi-Fi, or network positioning.'
+    if (error?.code === 3) return 'Location request timed out. Move to a clearer signal area and retry.'
+    return 'Unable to fetch current location.'
+  }
+
+  const useCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      setLocationState({ status: 'error', message: 'This browser does not support geolocation.' })
+      return
+    }
+
+    setLocationState({ status: 'loading', message: 'Requesting secure location permission...' })
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const latitude = Number(position.coords.latitude.toFixed(6))
+        const longitude = Number(position.coords.longitude.toFixed(6))
+        setForm((current) => ({ ...current, latitude, longitude }))
+        setLocationState({
+          status: 'success',
+          message: `Coordinates captured with ${Math.round(position.coords.accuracy || 0)}m accuracy.`,
+        })
+      },
+      (error) => {
+        setLocationState({ status: 'error', message: geolocationErrorMessage(error) })
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 12000,
+        maximumAge: 30000,
+      }
+    )
   }
 
   const submitEvent = async (event) => {
@@ -187,6 +226,27 @@ const Events = () => {
             <input type="number" className="px-4 py-3 bg-surfaceLight border border-border rounded-lg text-text-primary" placeholder="Safety radius meters" value={form.safetyRadiusMeters} onChange={(e) => setForm({ ...form, safetyRadiusMeters: e.target.value })} required />
             <input type="number" step="0.000001" className="px-4 py-3 bg-surfaceLight border border-border rounded-lg text-text-primary" placeholder="Latitude" value={form.latitude} onChange={(e) => setForm({ ...form, latitude: e.target.value })} required />
             <input type="number" step="0.000001" className="px-4 py-3 bg-surfaceLight border border-border rounded-lg text-text-primary" placeholder="Longitude" value={form.longitude} onChange={(e) => setForm({ ...form, longitude: e.target.value })} required />
+            <button
+              type="button"
+              onClick={useCurrentLocation}
+              disabled={locationState.status === 'loading'}
+              className={`lg:col-span-2 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border transition-all ${
+                locationState.status === 'success'
+                  ? 'bg-success/10 border-success/30 text-success'
+                  : locationState.status === 'error'
+                    ? 'bg-danger/10 border-danger/30 text-danger'
+                    : 'bg-primary/15 border-primary/30 text-primary hover:bg-primary/25'
+              } disabled:opacity-70 disabled:cursor-wait`}
+            >
+              {locationState.status === 'loading' ? (
+                <Loader2 size={18} className="animate-spin" />
+              ) : locationState.status === 'success' ? (
+                <CheckCircle size={18} />
+              ) : (
+                <MapPin size={18} />
+              )}
+              {locationState.status === 'loading' ? 'Fetching Location...' : 'Use Current Location'}
+            </button>
             <input type="date" className="px-4 py-3 bg-surfaceLight border border-border rounded-lg text-text-primary" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} required />
             <select className="px-4 py-3 bg-surfaceLight border border-border rounded-lg text-text-primary" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
               <option value="active">Active</option>
@@ -194,6 +254,17 @@ const Events = () => {
               <option value="completed">Completed</option>
             </select>
           </div>
+          {locationState.message && (
+            <div className={`rounded-lg border px-4 py-3 text-sm ${
+              locationState.status === 'success'
+                ? 'border-success/30 bg-success/10 text-success'
+                : locationState.status === 'error'
+                  ? 'border-danger/30 bg-danger/10 text-danger'
+                  : 'border-primary/30 bg-primary/10 text-primary'
+            }`}>
+              {locationState.message}
+            </div>
+          )}
           <textarea className="w-full px-4 py-3 bg-surfaceLight border border-border rounded-lg text-text-primary" rows="2" placeholder="Event description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
           <button className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-primary to-accent text-white rounded-lg shadow-neon">
             <Shield size={18} />
