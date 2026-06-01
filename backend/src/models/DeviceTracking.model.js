@@ -22,8 +22,9 @@ const deviceTrackingSchema = new mongoose.Schema(
       },
       deviceType: {
         type: String,
-        enum: ['ios', 'android', 'web', 'other'],
-        required: true,
+         enum: ["phone", "watch", "tablet"],
+         default: "phone",
+         required: true,
       },
       deviceModel: String,
       osVersion: String,
