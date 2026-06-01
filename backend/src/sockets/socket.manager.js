@@ -464,7 +464,7 @@ class SocketManager {
 
   async handleDeviceLocationUpdate(socket, data) {
     try {
-      const { eventId, familyGroupId, memberId, childMemberId, deviceId, latitude, longitude, location, battery, signal, batteryLevel, signalStatus, geofenceStatus, geofenceState, distanceMeters, zone, sosActive, deviceSession, trackingState, trackingLabel, privacyBoundary, sessionStatus, trackingPaused } = data;
+      const { eventId, familyGroupId, memberId, childMemberId, deviceId, latitude, longitude, location, accuracy, battery, signal, batteryLevel, signalStatus, geofenceStatus, geofenceState, distanceMeters, zone, sosActive, deviceSession, trackingState, trackingLabel, privacyBoundary, sessionStatus, trackingPaused } = data;
       const timestamp = data.timestamp || new Date().toISOString();
       const resolvedMemberId = childMemberId || memberId;
       const resolvedLocation = location || (
@@ -483,6 +483,7 @@ class SocketManager {
         latitude: resolvedLocation?.latitude,
         longitude: resolvedLocation?.longitude,
         location: resolvedLocation,
+        accuracy,
         battery: resolvedBattery,
         signal: resolvedSignal,
         batteryLevel: resolvedBattery,
@@ -515,6 +516,7 @@ class SocketManager {
           longitude: resolvedLocation?.longitude,
           lat: resolvedLocation?.latitude,
           lng: resolvedLocation?.longitude,
+          accuracy,
           battery: resolvedBattery,
           signal: resolvedSignal,
           batteryLevel: resolvedBattery,

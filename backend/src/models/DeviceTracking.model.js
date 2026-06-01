@@ -36,11 +36,11 @@ const deviceTrackingSchema = new mongoose.Schema(
       type: {
         type: String,
         enum: ['Point'],
-        required: true,
+        required: false,
       },
       coordinates: {
         type: [Number],
-        required: true,
+        required: false,
         validate: {
           validator: function (v) {
             return v.length === 2 && v[0] >= -180 && v[0] <= 180 && v[1] >= -90 && v[1] <= 90;
@@ -159,11 +159,11 @@ deviceTrackingSchema.index({ status: 1, timestamp: -1 });
 deviceTrackingSchema.index({ timestamp: 1 }, { expireAfterSeconds: 2592000 });
 
 deviceTrackingSchema.virtual('latitude').get(function () {
-  return this.location.coordinates[1];
+  return this.location?.coordinates?.[1];
 });
 
 deviceTrackingSchema.virtual('longitude').get(function () {
-  return this.location.coordinates[0];
+  return this.location?.coordinates?.[0];
 });
 
 deviceTrackingSchema.virtual('isMoving').get(function () {
@@ -195,6 +195,7 @@ deviceTrackingSchema.methods.generateSessionId = function () {
 };
 
 deviceTrackingSchema.methods.updateLocation = function (coordinates, accuracy, altitude, heading, speed) {
+  if (!this.location) this.location = { type: 'Point', coordinates };
   this.location.coordinates = coordinates;
   this.location.accuracy = accuracy;
   this.location.altitude = altitude;

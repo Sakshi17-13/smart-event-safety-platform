@@ -540,10 +540,10 @@ class FamilyService {
       throw new AppError('Linked event requires center coordinates and an active festival radius before device tracking can start', 400);
     }
 
-    const initialCoordinates =
-      child.lastLocation?.coordinates?.length === 2
-        ? child.lastLocation.coordinates
-        : [0, 0];
+    const hasRealChildCoordinates =
+      child.lastLocation?.coordinates?.length === 2 &&
+      child.lastLocation.coordinates.every(Number.isFinite) &&
+      !(child.lastLocation.coordinates[0] === 0 && child.lastLocation.coordinates[1] === 0);
     const deviceTracking = await DeviceTracking.create({
       user: group.leader,
       event: group.event,
@@ -551,10 +551,14 @@ class FamilyService {
         deviceId,
         deviceType: deviceMeta.deviceType || 'web',
       },
-      location: {
-        type: 'Point',
-        coordinates: initialCoordinates,
-      },
+      ...(hasRealChildCoordinates
+        ? {
+            location: {
+              type: 'Point',
+              coordinates: child.lastLocation.coordinates,
+            },
+          }
+        : {}),
       battery: {},
       network: {
         type: 'unknown',
@@ -571,6 +575,7 @@ class FamilyService {
           childMemberId: child._id,
           pairingCodeId: pairing._id,
           privacyBoundary: eventBoundary,
+          awaitingFirstGpsFix: !hasRealChildCoordinates,
         },
       },
       status: 'active',
@@ -633,6 +638,11 @@ class FamilyService {
     if (!locationData.deviceSessionId) {
       throw new AppError('Active device session is required before location tracking can start', 403);
     }
+    const latitude = Number(locationData.latitude);
+    const longitude = Number(locationData.longitude);
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || (latitude === 0 && longitude === 0)) {
+      throw new AppError('A fresh real GPS coordinate is required before device location can be streamed', 400);
+    }
 
     const group = await FamilyGroup.findOne({ 'childMembers.wearableDeviceId': deviceId });
     if (!group) throw new AppError('Linked device not found', 404);
@@ -652,7 +662,7 @@ class FamilyService {
     const event = group.event ? await Event.findById(group.event) : null;
     const eventBoundary = this.buildEventBoundary(
       event,
-      { latitude: locationData.latitude, longitude: locationData.longitude },
+      { latitude, longitude },
       deviceSession
     );
     if (!eventBoundary?.center) {
@@ -670,7 +680,8 @@ class FamilyService {
 
     deviceSession.location = {
       type: 'Point',
-      coordinates: [locationData.longitude, locationData.latitude],
+      coordinates: [longitude, latitude],
+      accuracy: locationData.accuracy,
     };
     deviceSession.battery = {
       ...deviceSession.battery,
@@ -697,7 +708,7 @@ class FamilyService {
 
     child.lastLocation = {
       type: 'Point',
-      coordinates: [locationData.longitude, locationData.latitude],
+      coordinates: [longitude, latitude],
     };
     child.lastSeenAt = new Date();
     child.batteryLevel = locationData.batteryLevel;

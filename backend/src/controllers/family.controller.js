@@ -364,6 +364,7 @@ class FamilyController {
         latitude: req.body.latitude,
         longitude: req.body.longitude,
         location: { latitude: req.body.latitude, longitude: req.body.longitude },
+        accuracy: req.body.accuracy,
         battery: req.body.battery ?? req.body.batteryLevel,
         signal: req.body.signal || req.body.signalStatus,
         batteryLevel: req.body.batteryLevel ?? req.body.battery,

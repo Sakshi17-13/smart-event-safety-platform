@@ -62,6 +62,11 @@ const resolveBoundaryState = (pairingData, location) => {
   }
 }
 
+const isFreshGpsPosition = (coords = {}) => {
+  const timestamp = Number(coords.timestamp || Date.now())
+  return Date.now() - timestamp <= 30 * 1000
+}
+
 const loadIdentity = () => {
   try {
     const saved = JSON.parse(localStorage.getItem(DEVICE_KEY))
@@ -242,6 +247,10 @@ const DevicePairing = () => {
 
   const publishLocation = async (pairingData, coords) => {
     if (!coords) return
+    if (!isFreshGpsPosition(coords)) {
+      setStatus('GPS coordinates are stale. Waiting for a fresh browser location fix.')
+      return
+    }
     const nextBattery = Math.max(8, Math.min(100, batteryRef.current - Math.floor(Math.random() * 2)))
     const nextSignal = Math.random() > 0.85 ? 'weak' : 'strong'
     const location = { latitude: coords.latitude, longitude: coords.longitude }
@@ -251,6 +260,7 @@ const DevicePairing = () => {
     const payload = {
       latitude: location.latitude,
       longitude: location.longitude,
+      accuracy: coords.accuracy,
       battery: nextBattery,
       signal: nextSignal,
       batteryLevel: nextBattery,
@@ -312,6 +322,7 @@ const DevicePairing = () => {
       latitude: location.latitude,
       longitude: location.longitude,
       location,
+      accuracy: coords.accuracy,
       battery: payload.battery,
       signal: payload.signal,
       batteryLevel: payload.batteryLevel,
@@ -357,7 +368,12 @@ const DevicePairing = () => {
     setStatus('Requesting browser GPS permission for realtime tracking...')
     geoWatchRef.current = navigator.geolocation.watchPosition(
       (position) => {
-        latestCoordsRef.current = position.coords
+        latestCoordsRef.current = {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          accuracy: position.coords.accuracy,
+          timestamp: position.timestamp,
+        }
         setGeolocationStatus('granted')
         setSharing(true)
         setStatus('GPS permission granted. Realtime tracking is active.')

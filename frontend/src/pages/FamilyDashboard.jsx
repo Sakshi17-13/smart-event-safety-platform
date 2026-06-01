@@ -68,15 +68,23 @@ const formatRelativeTime = (timestamp, fallback = 'Not Connected') => {
   return `${Math.floor(ageSeconds / 60)} min ago`
 }
 
+const isFreshTimestamp = (timestamp, maxAgeMs = 45 * 1000) => {
+  if (!timestamp) return false
+  const time = new Date(timestamp).getTime()
+  return Number.isFinite(time) && Date.now() - time <= maxAgeMs
+}
+
 const hasActiveTrackingLocation = (child) =>
   Boolean(
     child?.isPaired &&
     child?.position?.every(Number.isFinite) &&
     !child?.trackingPaused &&
-    child?.trackingState !== 'outside_event_zone'
+    child?.trackingState !== 'outside_event_zone' &&
+    isFreshTimestamp(child?.lastSeenAt)
   )
 
 const formatTrackingDistance = (child) => {
+  if (child?.position && !isFreshTimestamp(child?.lastSeenAt)) return 'Location unavailable'
   if (!hasActiveTrackingLocation(child)) return 'Location unavailable'
   if (Number.isFinite(child.distanceMeters)) return `${Math.round(child.distanceMeters)}m away`
   return 'Awaiting live location'
@@ -531,7 +539,6 @@ const FamilyDashboard = () => {
 
   const [geofences, setGeofences] = useState([
     { name: 'Guardian Radius', address: 'Family safe zone', radius: SAFE_RADIUS_METERS, active: true, center: [GUARDIAN.latitude, GUARDIAN.longitude] },
-    { name: 'Event Family Zone', address: 'Central Grounds', radius: 260, active: true, center: [19.076, 72.8777] },
   ])
 
   const [mapCenter] = useState([GUARDIAN.latitude, GUARDIAN.longitude])
@@ -640,7 +647,7 @@ const FamilyDashboard = () => {
       })),
     [children, liveClock]
   )
-  const liveTrackedCount = displayChildren.filter((child) => child.isPaired && child.position).length
+  const liveTrackedCount = displayChildren.filter((child) => hasActiveTrackingLocation(child)).length
   const safeCount = displayChildren.filter((child) => child.status === 'safe').length
   const warningCount = displayChildren.filter((child) => child.status === 'warning').length
   const breachCount = displayChildren.filter((child) => child.status === 'danger').length
@@ -1710,7 +1717,7 @@ const FamilyDashboard = () => {
                 </Popup>
               </Marker>
 
-              {displayChildren.filter((child) => child.isPaired && child.position).map((child) => (
+              {displayChildren.filter((child) => hasActiveTrackingLocation(child)).map((child) => (
                 child.trail?.length > 1 && child.trail.slice(1).map((point, index) => (
                   <Fragment key={`${child.id}-trail-segment-${index}`}>
                   <Polyline
@@ -1738,7 +1745,7 @@ const FamilyDashboard = () => {
               ))}
 
               {/* Child markers */}
-              {displayChildren.filter((child) => child.isPaired && child.position).map((child) => (
+              {displayChildren.filter((child) => hasActiveTrackingLocation(child)).map((child) => (
                 <Marker
                   key={child.id}
                   position={child.position}
@@ -1768,7 +1775,7 @@ const FamilyDashboard = () => {
               ))}
 
               {/* Route line if child selected */}
-              {selectedChild?.isPaired && selectedChild.position && (
+              {selectedChild?.isPaired && hasActiveTrackingLocation(selectedChild) && (
                 <Polyline
                   positions={[guardianCenter, selectedChild.position]}
                   pathOptions={{
