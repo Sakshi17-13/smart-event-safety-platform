@@ -174,10 +174,16 @@ const familyGroupSchema = new mongoose.Schema(
     ],
     devicePairings: [
       {
+        familyId: mongoose.Schema.Types.ObjectId,
         childMemberId: mongoose.Schema.Types.ObjectId,
+        childId: mongoose.Schema.Types.ObjectId,
         code: {
           type: String,
           required: true,
+          trim: true,
+        },
+        pairCode: {
+          type: String,
           trim: true,
         },
         deviceId: {
@@ -194,13 +200,14 @@ const familyGroupSchema = new mongoose.Schema(
         },
         status: {
           type: String,
-          enum: ['pending', 'confirmed', 'expired'],
+          enum: ['pending', 'confirmed', 'connected', 'expired'],
           default: 'pending',
         },
         createdAt: {
           type: Date,
           default: Date.now,
         },
+        connectedAt: Date,
         confirmedAt: Date,
         expiresAt: Date,
       },

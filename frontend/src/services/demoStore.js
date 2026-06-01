@@ -451,7 +451,7 @@ export const demoStore = {
     const familyGroups = state.familyGroups.map((group) => {
       if (group._id !== groupId) return group
       const child = group.childMembers.find((member) => member._id === memberId)
-      result = { groupId, childMemberId: memberId, childName: child?.name, familyCode: group.code, pairingCode: pairCode, expiresAt }
+      result = { groupId, familyId: groupId, childMemberId: memberId, childId: memberId, childName: child?.name, familyCode: group.code, pairingCode: pairCode, pairCode, expiresAt }
       return {
         ...group,
         childMembers: group.childMembers.map((member) =>
@@ -463,7 +463,7 @@ export const demoStore = {
               ? { ...pairing, status: 'expired', expiredAt: nowIso() }
               : pairing
           ),
-          { childMemberId: memberId, code: pairCode, status: 'pending', expiresAt, createdAt: nowIso() },
+          { familyId: group._id, childMemberId: memberId, childId: memberId, code: pairCode, pairCode, status: 'pending', expiresAt, createdAt: nowIso() },
         ],
         updatedAt: nowIso(),
       }
@@ -481,7 +481,7 @@ export const demoStore = {
     const normalizedPairCode = normalizeCode(pairCode)
     const familyGroups = state.familyGroups.map((group) => {
       if (normalizeCode(group.code) !== normalizedFamilyCode) return group
-      const pairing = group.devicePairings.find((item) => normalizeCode(item.code) === normalizedPairCode)
+      const pairing = group.devicePairings.find((item) => normalizeCode(item.code) === normalizedPairCode || normalizeCode(item.pairCode) === normalizedPairCode)
       if (!pairing || pairing.status !== 'pending') return group
       if (new Date(pairing.expiresAt) < new Date()) {
         expiredCode = pairing.code
@@ -533,6 +533,14 @@ export const demoStore = {
         paired: true,
         connected: true,
         status: 'connected',
+        pairingSession: {
+          familyId: group._id,
+          childId: pairing.childMemberId,
+          pairCode: pairing.code || pairing.pairCode,
+          status: 'connected',
+          expiresAt: pairing.expiresAt,
+          connectedAt: nowIso(),
+        },
       }
       return {
         ...group,
@@ -552,13 +560,18 @@ export const demoStore = {
           })
         }),
         devicePairings: group.devicePairings.map((item) =>
-          normalizeCode(item.code) === normalizedPairCode ? { ...item, status: 'confirmed', deviceId, deviceType, deviceLabel: label, confirmedAt: nowIso(), deviceSession } : item
+          normalizeCode(item.code) === normalizedPairCode || normalizeCode(item.pairCode) === normalizedPairCode
+            ? { ...item, status: 'connected', deviceId, deviceType, deviceLabel: label, confirmedAt: nowIso(), connectedAt: nowIso(), deviceSession }
+            : item
         ),
         updatedAt: nowIso(),
       }
     })
     this.save({ ...state, familyGroups })
-    if (result) emitRealtime('DEVICE_PAIRED', result)
+    if (result) {
+      emitRealtime('DEVICE_PAIRED', result)
+      emitRealtime('device:connected', result)
+    }
     if (expiredCode) emitRealtime('PAIR_CODE_EXPIRED', { familyCode: normalizedFamilyCode, pairCode: expiredCode })
     return result
   },

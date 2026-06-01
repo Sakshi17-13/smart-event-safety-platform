@@ -476,8 +476,11 @@ class FamilyService {
     child.paired = false;
     child.connected = false;
     group.devicePairings.push({
+      familyId: group._id,
       childMemberId: child._id,
+      childId: child._id,
       code,
+      pairCode: code,
       status: 'pending',
       expiresAt,
     });
@@ -510,7 +513,7 @@ class FamilyService {
     });
     if (!group) throw new AppError('Pairing code not found', 404);
 
-    const pairing = group.devicePairings.find((item) => item.code === normalizedPairCode);
+    const pairing = group.devicePairings.find((item) => item.code === normalizedPairCode || item.pairCode === normalizedPairCode);
     if (!pairing || pairing.status !== 'pending') {
       throw new AppError('Pairing code already used or unavailable', 400);
     }
@@ -573,11 +576,12 @@ class FamilyService {
       status: 'active',
     });
 
-    pairing.status = 'confirmed';
+    pairing.status = 'connected';
     pairing.deviceId = deviceId;
     pairing.deviceType = deviceMeta.deviceType;
     pairing.deviceLabel = deviceMeta.deviceLabel;
     pairing.confirmedAt = new Date();
+    pairing.connectedAt = pairing.confirmedAt;
     child.wearableDeviceId = deviceId;
     child.deviceType = deviceMeta.deviceType || child.deviceType || 'watch';
     child.deviceLabel = deviceMeta.deviceLabel || child.deviceLabel || deviceId;
@@ -608,6 +612,14 @@ class FamilyService {
       paired: true,
       connected: true,
       status: 'connected',
+      pairingSession: {
+        familyId: group._id,
+        childId: child._id,
+        pairCode: pairing.code,
+        status: pairing.status,
+        expiresAt: pairing.expiresAt,
+        connectedAt: pairing.connectedAt,
+      },
       deviceSession: {
         sessionId: deviceTracking.sessionInfo.sessionId,
         trackingId: deviceTracking._id,

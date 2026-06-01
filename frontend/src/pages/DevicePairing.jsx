@@ -502,11 +502,11 @@ const DevicePairing = () => {
       setBoundaryState(pairingData.eventBoundary || { state: 'tracking_active', label: 'Tracking Active' })
       setConnectionStatus('local')
       setSignalStatus('strong')
-      setStatus(`Connected to ${pairingData.childName || 'child member'}. Tracking session is ready.`)
+      setStatus('Device Connected Successfully')
       connectDeviceSocket(pairingData)
       startGpsTracking(pairingData)
     } catch (error) {
-      setStatus(error.response?.data?.message || error.message || 'Pairing failed')
+      setStatus(error.response?.data?.message || error.message || 'Pairing failed. Check whether the family code and temporary pair code are valid and not expired.')
       setConnectionStatus('idle')
     }
   }
@@ -693,7 +693,7 @@ const DevicePairing = () => {
                 <CheckCircle size={26} className="relative" />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-sm uppercase tracking-[0.2em] text-success font-bold">Device Connected</p>
+                <p className="text-sm uppercase tracking-[0.2em] text-success font-bold">Device Connected Successfully</p>
                 <p className="text-text-primary font-semibold truncate">{paired.childName || identity.deviceLabel} is linked and ready for live tracking.</p>
               </div>
               <button

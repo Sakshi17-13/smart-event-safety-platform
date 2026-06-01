@@ -324,6 +324,7 @@ class FamilyController {
         payload.linkedDevices = metrics.linkedDevices;
       }
       socketManager.broadcastToFamily(payload.familyGroupId, 'DEVICE_PAIRED', payload);
+      socketManager.broadcastToFamily(payload.familyGroupId, 'device:connected', payload);
       socketManager.broadcastToFamily(payload.familyGroupId, 'DEVICE_STATUS_UPDATED', {
         ...payload,
         status: 'connected',
@@ -333,6 +334,12 @@ class FamilyController {
       });
       if (payload.eventId) {
         socketManager.broadcastToEvent(payload.eventId, 'DEVICE_PAIRED', payload);
+        socketManager.broadcastToEvent(payload.eventId, 'device:connected', payload);
+        socketManager.broadcastToOrganizer(payload.eventId, 'device:connected', {
+          ...payload,
+          childName: undefined,
+          familyName: undefined,
+        });
         socketManager.broadcastToOrganizer(payload.eventId, 'DEVICE_PAIRED', {
           ...payload,
           childName: undefined,

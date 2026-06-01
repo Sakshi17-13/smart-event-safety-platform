@@ -446,6 +446,17 @@ const deviceStateFor = ({ device, member, child }) => {
     }
   }
 
+  if (connected && trackingState === 'tracking_active') {
+    return {
+      key: 'tracking-live',
+      label: 'Tracking Live',
+      dot: 'bg-success animate-pulse',
+      badge: 'bg-success/20 text-success border-success/40',
+      panel: 'border-success/45 bg-success/5 shadow-[0_0_22px_rgba(16,185,129,0.12)]',
+      glow: 'tracking-live-glow',
+    }
+  }
+
   if (connected) {
     return {
       key: 'connected',
@@ -478,6 +489,7 @@ const familyTimelineEvents = new Set([
   'FAMILY_MEMBER_UPDATED',
   'FAMILY_MEMBER_REMOVED',
   'DEVICE_PAIRED',
+  'device:connected',
   'DEVICE_STATUS_UPDATED',
   'DEVICE_DISCONNECTED',
   'DEVICE_TRACKING_PAUSED',
@@ -835,6 +847,7 @@ const FamilyDashboard = () => {
     on('FAMILY_MEMBER_REMOVED', reloadIfOwnFamily)
     on('FAMILY_GUARDIAN_REMOVED', reloadIfOwnFamily)
     on('DEVICE_PAIRED', reloadIfOwnDevice)
+    on('device:connected', reloadIfOwnDevice)
     on('DEVICE_LOCATION_UPDATED', reloadIfOwnDevice)
     on('DEVICE_STATUS_UPDATED', reloadIfOwnDevice)
     on('DEVICE_DISCONNECTED', reloadIfOwnDevice)
@@ -855,6 +868,7 @@ const FamilyDashboard = () => {
       off('FAMILY_MEMBER_REMOVED', reloadIfOwnFamily)
       off('FAMILY_GUARDIAN_REMOVED', reloadIfOwnFamily)
       off('DEVICE_PAIRED', reloadIfOwnDevice)
+      off('device:connected', reloadIfOwnDevice)
       off('DEVICE_LOCATION_UPDATED', reloadIfOwnDevice)
       off('DEVICE_STATUS_UPDATED', reloadIfOwnDevice)
       off('DEVICE_DISCONNECTED', reloadIfOwnDevice)
@@ -1090,7 +1104,7 @@ const FamilyDashboard = () => {
             deviceStatus: 'paired',
             deviceLabel: liveDevice.label,
             deviceType: liveDevice.deviceType,
-            connectionStatus: 'Connected',
+            connectionStatus: 'Tracking Live',
             lastSeen: formatLastSeen(activityTimestamp),
             lastSeenAt: activityTimestamp,
             batteryLevel: liveDevice.batteryLevel,
@@ -1167,6 +1181,7 @@ const FamilyDashboard = () => {
 
     on('child-location-update', updateChildLocation)
     on('DEVICE_PAIRED', applyDevicePaired)
+    on('device:connected', applyDevicePaired)
     on('DEVICE_LOCATION_UPDATED', updateDeviceLocation)
     on('TRACKING_PRIVACY_BOUNDARY', updateDeviceLocation)
     on('DEVICE_TRACKING_PAUSED', updateDeviceLocation)
@@ -1178,6 +1193,7 @@ const FamilyDashboard = () => {
     return () => {
       off('child-location-update', updateChildLocation)
       off('DEVICE_PAIRED', applyDevicePaired)
+      off('device:connected', applyDevicePaired)
       off('DEVICE_LOCATION_UPDATED', updateDeviceLocation)
       off('TRACKING_PRIVACY_BOUNDARY', updateDeviceLocation)
       off('DEVICE_TRACKING_PAUSED', updateDeviceLocation)
