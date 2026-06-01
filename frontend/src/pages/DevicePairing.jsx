@@ -94,7 +94,7 @@ const DevicePairing = () => {
   const gpsPublishRef = useRef(null)
   const latestCoordsRef = useRef(null)
   const hasConnectedRef = useRef(false)
-  const initialGeoRequestRef = useRef(false)
+  const activePairingRef = useRef(null)
   const initialPairingParams = useMemo(() => new URLSearchParams(window.location.search), [])
   const [familyCode, setFamilyCode] = useState(initialPairingParams.get('familyCode') || '')
   const [pairCode, setPairCode] = useState(initialPairingParams.get('pairCode') || '')
@@ -114,6 +114,10 @@ const DevicePairing = () => {
   const selectedType = deviceTypes.find((item) => item.value === identity.deviceType) || deviceTypes[0]
   const SelectedIcon = selectedType.icon
   const gpsBlocked = geolocationStatus === 'denied' || geolocationStatus === 'unavailable'
+
+  useEffect(() => {
+    activePairingRef.current = paired
+  }, [paired])
 
   useEffect(() => {
     const currentIdentity = {
@@ -376,17 +380,14 @@ const DevicePairing = () => {
           setStatus('Location permission denied. Realtime tracking is disabled until browser GPS access is allowed.')
           return
         }
-        setGeolocationStatus('unavailable')
-        setStatus('Device GPS is unavailable. Realtime tracking is disabled until location is available.')
+        setGeolocationStatus((current) => (current === 'granted' ? 'granted' : 'prompt'))
+        setStatus('Location permission is available. Waiting for a fresh GPS fix to start realtime tracking.')
       },
       { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
     )
   }
 
   useEffect(() => {
-    if (initialGeoRequestRef.current) return undefined
-    initialGeoRequestRef.current = true
-
     if (!navigator.geolocation) {
       setGeolocationStatus('unavailable')
       setSignalStatus('lost')
@@ -394,30 +395,52 @@ const DevicePairing = () => {
       return undefined
     }
 
-    setGeolocationStatus('requesting')
-    setStatus('Requesting browser GPS permission for realtime tracking...')
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        latestCoordsRef.current = position.coords
-        setGeolocationStatus('granted')
-        setStatus(paired ? 'GPS permission granted. Realtime tracking is active.' : 'GPS permission granted. Pair device to start realtime tracking.')
-        if (paired) startGpsTracking(paired)
-      },
-      (error) => {
-        setSignalStatus('lost')
-        if (error.code === error.PERMISSION_DENIED) {
-          setGeolocationStatus('denied')
-          setStatus('Location permission denied. Realtime tracking is disabled until browser GPS access is allowed.')
-          return
-        }
-        setGeolocationStatus('unavailable')
-        setStatus('Device GPS is unavailable. Realtime tracking is disabled until location is available.')
-      },
-      { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
-    )
+    let permissionStatus
+    let cancelled = false
 
-    return undefined
-  }, [])
+    const applyPermissionState = (state) => {
+      if (cancelled) return
+      if (state === 'granted') {
+        setGeolocationStatus('granted')
+        setSignalStatus((current) => (current === 'lost' ? 'standby' : current))
+        setStatus(activePairingRef.current ? 'Location permission granted. Starting realtime tracking...' : 'Location permission granted. Pair device to start realtime tracking.')
+        if (activePairingRef.current && geoWatchRef.current === null) startGpsTracking(activePairingRef.current)
+        return
+      }
+      if (state === 'denied') {
+        setGeolocationStatus('denied')
+        setSignalStatus('lost')
+        stopGpsTracking()
+        setStatus('Location permission denied. Realtime tracking is disabled until browser GPS access is allowed.')
+        return
+      }
+      setGeolocationStatus('prompt')
+      setStatus(activePairingRef.current ? 'Location permission is required. Approve the browser prompt to start tracking.' : 'Pair device, then approve location access to start tracking.')
+    }
+
+    if (!navigator.permissions?.query) {
+      setGeolocationStatus('prompt')
+      setStatus('Pair device, then approve location access to start tracking.')
+      return undefined
+    }
+
+    navigator.permissions
+      .query({ name: 'geolocation' })
+      .then((status) => {
+        permissionStatus = status
+        applyPermissionState(status.state)
+        status.onchange = () => applyPermissionState(status.state)
+      })
+      .catch(() => {
+        setGeolocationStatus('prompt')
+        setStatus('Pair device, then approve location access to start tracking.')
+      })
+
+    return () => {
+      cancelled = true
+      if (permissionStatus) permissionStatus.onchange = null
+    }
+  }, [paired?.deviceId])
 
   useEffect(() => () => {
     clearInterval(heartbeatRef.current)
@@ -554,6 +577,8 @@ const DevicePairing = () => {
         ? 'GPS Blocked'
         : geolocationStatus === 'requesting'
           ? 'GPS Permission'
+          : geolocationStatus === 'prompt'
+            ? 'GPS Prompt'
           :
     connectionStatus === 'connected'
       ? 'Connected'
@@ -624,7 +649,7 @@ const DevicePairing = () => {
             </div>
             <div className="glass rounded-2xl p-3 border-glow text-center">
               <Shield className={sharing ? 'text-success mx-auto' : 'text-text-muted mx-auto'} size={22} />
-              <p className="text-lg font-bold text-text-primary mt-2">{gpsBlocked ? 'Blocked' : sharing ? 'On' : 'Off'}</p>
+              <p className="text-lg font-bold text-text-primary mt-2">{gpsBlocked ? 'Blocked' : sharing ? 'On' : geolocationStatus === 'prompt' ? 'Prompt' : 'Off'}</p>
               <p className="text-[11px] text-text-muted">GPS</p>
             </div>
           </div>
@@ -873,7 +898,7 @@ const DevicePairing = () => {
           <div className="glass rounded-xl p-5 border-glow">
             <Shield className={sharing ? 'text-success' : 'text-text-muted'} />
             <p className="text-sm text-text-muted mt-3">Geolocation</p>
-            <p className="text-xl font-bold text-text-primary">{sharing ? 'Streaming' : 'Paused'}</p>
+            <p className="text-xl font-bold text-text-primary">{sharing ? 'Streaming' : geolocationStatus === 'prompt' ? 'Prompt' : 'Paused'}</p>
           </div>
           <div className={`glass rounded-xl p-5 border ${boundaryStyle}`}>
             <Shield />
