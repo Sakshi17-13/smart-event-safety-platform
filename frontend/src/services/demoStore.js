@@ -473,7 +473,7 @@ export const demoStore = {
     return result
   },
 
-  confirmPairCode({ familyCode, pairCode, deviceId, deviceType = 'watch', deviceLabel }) {
+  confirmPairCode({ familyCode, pairCode, deviceId, deviceType = 'watch', deviceLabel, batteryLevel, signalStatus }) {
     const state = this.getState()
     let result = null
     let expiredCode = null
@@ -506,8 +506,8 @@ export const demoStore = {
         status: 'connected',
         paired: true,
         connected: true,
-        batteryLevel: null,
-        signalStatus: 'strong',
+        batteryLevel: batteryLevel ?? null,
+        signalStatus: signalStatus || 'strong',
         connectedAt: nowIso(),
         lastSeenAt: null,
         lastLocation: null,
@@ -515,7 +515,9 @@ export const demoStore = {
       const deviceSession = createDeviceSession({ groupId: group._id, childMemberId: pairing.childMemberId, deviceId })
       result = {
         groupId: group._id,
+        familyId: group._id,
         childMemberId: pairing.childMemberId,
+        childId: pairing.childMemberId,
         childName: child?.name,
         familyCode: group.code,
         familyName: group.name,
@@ -523,6 +525,9 @@ export const demoStore = {
         deviceId,
         deviceType,
         deviceLabel: label,
+        batteryLevel: nextDevice.batteryLevel,
+        signalStatus: nextDevice.signalStatus,
+        lastSeenAt: nowIso(),
         device: nextDevice,
         deviceSession,
         paired: true,
@@ -537,10 +542,13 @@ export const demoStore = {
           return normalizeChildMember({
             ...member,
             wearableDeviceId: member.wearableDeviceId || deviceId,
+            deviceType,
             deviceLabel: member.deviceLabel || label,
             devices: [...existingDevices, nextDevice],
             deviceStatus: 'connected',
-            signalStatus: 'strong',
+            batteryLevel: nextDevice.batteryLevel,
+            signalStatus: nextDevice.signalStatus,
+            lastSeenAt: nowIso(),
           })
         }),
         devicePairings: group.devicePairings.map((item) =>

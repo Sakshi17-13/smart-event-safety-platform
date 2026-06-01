@@ -108,6 +108,7 @@ const DevicePairing = () => {
   const [sharing, setSharing] = useState(false)
   const [geolocationStatus, setGeolocationStatus] = useState('idle')
   const [boundaryState, setBoundaryState] = useState({ state: 'tracking_active', label: 'Tracking Active' })
+  const [showSuccess, setShowSuccess] = useState(false)
   const [childMode, setChildMode] = useState(false)
 
   const selectedType = deviceTypes.find((item) => item.value === identity.deviceType) || deviceTypes[0]
@@ -466,14 +467,19 @@ const DevicePairing = () => {
         deviceId: identity.deviceId,
         deviceType: identity.deviceType,
         deviceLabel: identity.deviceLabel,
+        batteryLevel,
+        signalStatus: 'strong',
       })
       const pairingData = response.data.data
       if (!pairingData?.paired || !pairingData?.connected || !pairingData?.deviceSession?.sessionId) {
         throw new Error('Device session was not created. Recheck the pair code and try again.')
       }
       setPaired(pairingData)
+      setShowSuccess(true)
       setBoundaryState(pairingData.eventBoundary || { state: 'tracking_active', label: 'Tracking Active' })
       setConnectionStatus('local')
+      setSignalStatus('strong')
+      setStatus(`Connected to ${pairingData.childName || 'child member'}. Tracking session is ready.`)
       connectDeviceSocket(pairingData)
       startGpsTracking(pairingData)
     } catch (error) {
@@ -654,6 +660,26 @@ const DevicePairing = () => {
   return (
     <div className="min-h-screen bg-background cyber-grid p-3 sm:p-6">
       <div className="max-w-5xl mx-auto space-y-6">
+        {showSuccess && paired && (
+          <div className="fixed inset-x-3 top-4 z-[60] mx-auto max-w-xl rounded-2xl border border-success/40 bg-background/90 p-4 shadow-[0_0_40px_rgba(16,185,129,0.22)] backdrop-blur-xl animate-in fade-in slide-in-from-top-3">
+            <div className="flex items-center gap-4">
+              <div className="relative h-12 w-12 rounded-2xl bg-success/15 text-success flex items-center justify-center">
+                <span className="absolute inset-0 rounded-2xl bg-success/20 animate-ping" />
+                <CheckCircle size={26} className="relative" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm uppercase tracking-[0.2em] text-success font-bold">Device Connected</p>
+                <p className="text-text-primary font-semibold truncate">{paired.childName || identity.deviceLabel} is linked and ready for live tracking.</p>
+              </div>
+              <button
+                onClick={() => setShowSuccess(false)}
+                className="rounded-xl border border-border bg-surfaceLight px-3 py-2 text-sm text-text-secondary"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        )}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="min-w-0">
             <h1 className="text-2xl sm:text-3xl font-bold text-text-primary text-glow">Device Pairing</h1>

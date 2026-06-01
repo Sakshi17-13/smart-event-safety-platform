@@ -111,6 +111,11 @@ const familyGroupSchema = new mongoose.Schema(
           type: String,
           trim: true,
         },
+        deviceType: {
+          type: String,
+          trim: true,
+          default: 'watch',
+        },
         wearableDeviceId: {
           type: String,
           trim: true,
@@ -151,6 +156,11 @@ const familyGroupSchema = new mongoose.Schema(
           min: 0,
           max: 100,
         },
+        signalStatus: {
+          type: String,
+          trim: true,
+          default: 'standby',
+        },
         geofenceStatus: {
           type: String,
           enum: ['inside', 'outside', 'unknown'],
@@ -171,6 +181,14 @@ const familyGroupSchema = new mongoose.Schema(
           trim: true,
         },
         deviceId: {
+          type: String,
+          trim: true,
+        },
+        deviceType: {
+          type: String,
+          trim: true,
+        },
+        deviceLabel: {
           type: String,
           trim: true,
         },

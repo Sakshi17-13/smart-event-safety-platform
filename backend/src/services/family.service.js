@@ -483,7 +483,17 @@ class FamilyService {
     });
 
     await group.save();
-    return { groupId, childMemberId, familyCode: group.code, pairingCode: code, expiresAt };
+    return {
+      groupId,
+      familyId: groupId,
+      childMemberId,
+      childId: childMemberId,
+      childName: child.name,
+      familyCode: group.code,
+      pairingCode: code,
+      pairCode: code,
+      expiresAt,
+    };
   }
 
   async confirmPairing(familyCode, pairCode, deviceId, deviceMeta = {}) {
@@ -536,7 +546,7 @@ class FamilyService {
       event: group.event,
       deviceInfo: {
         deviceId,
-        deviceType: 'web',
+        deviceType: deviceMeta.deviceType || 'web',
       },
       location: {
         type: 'Point',
@@ -565,24 +575,36 @@ class FamilyService {
 
     pairing.status = 'confirmed';
     pairing.deviceId = deviceId;
+    pairing.deviceType = deviceMeta.deviceType;
+    pairing.deviceLabel = deviceMeta.deviceLabel;
     pairing.confirmedAt = new Date();
     child.wearableDeviceId = deviceId;
+    child.deviceType = deviceMeta.deviceType || child.deviceType || 'watch';
+    child.deviceLabel = deviceMeta.deviceLabel || child.deviceLabel || deviceId;
     child.deviceStatus = 'paired';
     child.paired = true;
     child.connected = true;
+    child.lastSeenAt = new Date();
+    child.batteryLevel = Number.isFinite(Number(deviceMeta.batteryLevel)) ? Number(deviceMeta.batteryLevel) : child.batteryLevel;
+    child.signalStatus = deviceMeta.signalStatus || 'strong';
     await group.save();
 
     return {
       groupId: group._id,
+      familyId: group._id,
       childMemberId: child._id,
+      childId: child._id,
       childName: child.name,
       familyCode: group.code,
       familyName: group.name,
       eventId: group.event,
       eventBoundary,
       deviceId,
-      deviceType: deviceMeta.deviceType,
-      deviceLabel: deviceMeta.deviceLabel,
+      deviceType: deviceMeta.deviceType || child.deviceType,
+      deviceLabel: deviceMeta.deviceLabel || child.deviceLabel,
+      batteryLevel: child.batteryLevel,
+      signalStatus: child.signalStatus,
+      lastSeenAt: child.lastSeenAt,
       paired: true,
       connected: true,
       status: 'connected',

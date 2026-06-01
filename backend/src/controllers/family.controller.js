@@ -302,6 +302,8 @@ class FamilyController {
         {
           deviceType: req.body.deviceType,
           deviceLabel: req.body.deviceLabel,
+          batteryLevel: req.body.batteryLevel,
+          signalStatus: req.body.signalStatus,
         }
       );
       const payload = {
@@ -322,6 +324,13 @@ class FamilyController {
         payload.linkedDevices = metrics.linkedDevices;
       }
       socketManager.broadcastToFamily(payload.familyGroupId, 'DEVICE_PAIRED', payload);
+      socketManager.broadcastToFamily(payload.familyGroupId, 'DEVICE_STATUS_UPDATED', {
+        ...payload,
+        status: 'connected',
+        batteryLevel: payload.batteryLevel,
+        signalStatus: payload.signalStatus || 'strong',
+        lastSeenAt: payload.lastSeenAt || payload.timestamp,
+      });
       if (payload.eventId) {
         socketManager.broadcastToEvent(payload.eventId, 'DEVICE_PAIRED', payload);
         socketManager.broadcastToOrganizer(payload.eventId, 'DEVICE_PAIRED', {

@@ -82,6 +82,15 @@ const formatTrackingDistance = (child) => {
   return 'Awaiting live location'
 }
 
+const hasRealDeviceCoordinates = (member) => {
+  const coordinates = member?.lastLocation?.coordinates
+  if (!Array.isArray(coordinates) || coordinates.length !== 2) return false
+  const [longitude, latitude] = coordinates.map(Number)
+  if (![longitude, latitude].every(Number.isFinite)) return false
+  if (longitude === 0 && latitude === 0) return false
+  return true
+}
+
 const ChildCard = ({ child, onSelect, onSOS }) => (
   <motion.div
     initial={{ opacity: 0, y: 20 }}
@@ -334,7 +343,7 @@ const devicesForMember = (member) => {
   return [
     {
       deviceId: member.wearableDeviceId,
-      deviceType: 'watch',
+      deviceType: member.deviceType || 'watch',
       label: member.deviceLabel || member.wearableDeviceId,
       status: connected ? 'connected' : member.deviceStatus || 'disconnected',
       paired: member.paired === true || connected,
@@ -551,7 +560,7 @@ const FamilyDashboard = () => {
     const devices = devicesForMember(child)
     const primaryDevice = devices[0]
     const isPaired = hasPairedDevice(child)
-    const position = isPaired && child.lastLocation?.coordinates
+    const position = isPaired && hasRealDeviceCoordinates(child)
       ? [child.lastLocation.coordinates[1], child.lastLocation.coordinates[0]]
       : null
     const deviceState = deviceStateFor({ device: primaryDevice, member: child, child: { ...child, position } })
@@ -1053,6 +1062,54 @@ const FamilyDashboard = () => {
       )
     }
 
+    const applyDevicePaired = (data = {}) => {
+      if (!isOwnFamilyPayload(data, { requireDevice: Boolean(data.deviceId) })) return
+      const childId = data.childMemberId || data.childId || data.memberId
+      const activityTimestamp = data.lastSeenAt || data.timestamp || new Date().toISOString()
+      setChildren((prev) =>
+        prev.map((child) => {
+          if (String(child.id) !== String(childId)) return child
+          const primaryDevice = child.devices?.[0] || {}
+          const liveDevice = {
+            ...primaryDevice,
+            deviceId: data.deviceId || primaryDevice.deviceId,
+            label: data.deviceLabel || primaryDevice.label || child.deviceLabel || data.deviceId,
+            deviceType: data.deviceType || primaryDevice.deviceType || child.deviceType || 'watch',
+            status: 'connected',
+            connected: true,
+            paired: true,
+            batteryLevel: data.batteryLevel ?? child.batteryLevel ?? primaryDevice.batteryLevel,
+            signalStatus: data.signalStatus || 'strong',
+            lastSeenAt: activityTimestamp,
+            trackingState: data.trackingState || 'tracking_active',
+            trackingPaused: false,
+          }
+          const nextChild = {
+            ...child,
+            isPaired: true,
+            deviceStatus: 'paired',
+            deviceLabel: liveDevice.label,
+            deviceType: liveDevice.deviceType,
+            connectionStatus: 'Connected',
+            lastSeen: formatLastSeen(activityTimestamp),
+            lastSeenAt: activityTimestamp,
+            batteryLevel: liveDevice.batteryLevel,
+            signalStatus: liveDevice.signalStatus,
+            trackingState: data.trackingState || 'tracking_active',
+            trackingLabel: data.trackingLabel || 'Tracking Active',
+            trackingPaused: false,
+            sessionStatus: 'active',
+            privacyBoundary: data.eventBoundary || data.privacyBoundary || child.privacyBoundary,
+            devices: [liveDevice],
+          }
+          return {
+            ...nextChild,
+            deviceState: deviceStateFor({ device: liveDevice, child: nextChild }),
+          }
+        })
+      )
+    }
+
     const updateDeviceActivity = (data) => {
       if (!isOwnFamilyPayload(data, { requireDevice: Boolean(data.deviceId) })) return
       const activityTimestamp = data.lastSeenAt || data.timestamp
@@ -1109,6 +1166,7 @@ const FamilyDashboard = () => {
     }
 
     on('child-location-update', updateChildLocation)
+    on('DEVICE_PAIRED', applyDevicePaired)
     on('DEVICE_LOCATION_UPDATED', updateDeviceLocation)
     on('TRACKING_PRIVACY_BOUNDARY', updateDeviceLocation)
     on('DEVICE_TRACKING_PAUSED', updateDeviceLocation)
@@ -1119,7 +1177,8 @@ const FamilyDashboard = () => {
 
     return () => {
       off('child-location-update', updateChildLocation)
-    off('DEVICE_LOCATION_UPDATED', updateDeviceLocation)
+      off('DEVICE_PAIRED', applyDevicePaired)
+      off('DEVICE_LOCATION_UPDATED', updateDeviceLocation)
       off('TRACKING_PRIVACY_BOUNDARY', updateDeviceLocation)
       off('DEVICE_TRACKING_PAUSED', updateDeviceLocation)
       off('DEVICE_STATUS_UPDATED', updateDeviceActivity)
@@ -1379,14 +1438,20 @@ const FamilyDashboard = () => {
       const response = await familyAPI.generatePairingCode(groupId, child.id)
       const pairingData = response.data.data
       setPairing(pairingData)
+      setFamilyActionMessage({
+        type: 'success',
+        text: `Pair code created for ${child.name}. It expires in 5 minutes.`,
+      })
       const params = new URLSearchParams({
         familyCode: pairingData.familyCode || activeFamilyGroup?.code || '',
         pairCode: pairingData.pairingCode || '',
+        childId: pairingData.childId || pairingData.childMemberId || child.id,
       })
-      window.open(`/device-pairing?${params.toString()}`, '_blank', 'noopener,noreferrer')
+      window.open(`/pair-device?${params.toString()}`, '_blank', 'noopener,noreferrer')
       await loadFamilyGroups()
     } catch (error) {
       console.error('Failed to generate pairing code:', error)
+      setFamilyActionMessage({ type: 'error', text: error.response?.data?.message || 'Failed to create pair code.' })
     }
   }
 
